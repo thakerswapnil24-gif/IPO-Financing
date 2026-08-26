@@ -1,0 +1,154 @@
+{
+  "_disclaimer": "Illustrative constructions only. These are not records of real issues, and none of the GMP or allotment-probability values are observed market data. Replace every number with your own before drawing any conclusion.",
+  "examples": [
+    {
+      "name": "A. Mainboard, strong GMP, retail, own funds",
+      "notes": "One retail application funded entirely from own cash. Tests the cleanest case: no borrowing, only the opportunity cost of six days of blocked money.",
+      "ipo": {
+        "name": "Mainboard Strong (illustrative)",
+        "issue_price": 300.0,
+        "lot_size": 50,
+        "gmp_value": 105.0,
+        "gmp_mode": "Absolute Rs",
+        "use_gmp_for_listing": true,
+        "holding_period_days": 0
+      },
+      "accounts": [
+        {"label": "Self (retail)", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.1, "lots_allotted_if_successful": 1.0}
+      ],
+      "financing": {
+        "funding_mode": "Own capital only",
+        "own_capital_available": 20000.0,
+        "own_capital_deployed": 20000.0,
+        "fd_amount": 0.0,
+        "fd_rate_pct": 7.0,
+        "od_ltv_pct": 90.0,
+        "od_rate_pct": 0.0,
+        "days_blocked": 6,
+        "opportunity_cost_rate_pct": 7.0,
+        "include_opportunity_cost": true
+      }
+    },
+    {
+      "name": "B. Same issue, five PANs on FD-backed OD",
+      "notes": "The identical issue bid from five accounts, all funded by an overdraft against a fixed deposit. Shows financing cost scaling with applications while profit scales only with the hit-rate.",
+      "ipo": {
+        "name": "Mainboard Strong (illustrative)",
+        "issue_price": 300.0,
+        "lot_size": 50,
+        "gmp_value": 105.0,
+        "gmp_mode": "Absolute Rs",
+        "use_gmp_for_listing": true,
+        "holding_period_days": 1
+      },
+      "accounts": [
+        {"label": "PAN 1", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.1},
+        {"label": "PAN 2", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.1},
+        {"label": "PAN 3", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.1},
+        {"label": "PAN 4", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.1},
+        {"label": "PAN 5", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.1}
+      ],
+      "financing": {
+        "funding_mode": "Maximise OD",
+        "own_capital_available": 5000.0,
+        "own_capital_deployed": 0.0,
+        "fd_amount": 100000.0,
+        "fd_rate_pct": 7.25,
+        "od_ltv_pct": 90.0,
+        "od_rate_pct": 11.0,
+        "processing_fee": 500.0,
+        "days_blocked": 6,
+        "opportunity_cost_rate_pct": 7.25,
+        "include_opportunity_cost": true
+      }
+    },
+    {
+      "name": "C. Three PANs, modest GMP, costly OD",
+      "notes": "A middling issue on expensive borrowed money. Designed to sit near the decision boundary, where the verdict flips on small changes to GMP or the hit-rate.",
+      "ipo": {
+        "name": "Mid-cap Moderate (illustrative)",
+        "issue_price": 200.0,
+        "lot_size": 75,
+        "gmp_value": 16.0,
+        "gmp_mode": "Absolute Rs",
+        "use_gmp_for_listing": true,
+        "holding_period_days": 2
+      },
+      "accounts": [
+        {"label": "PAN 1", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.15},
+        {"label": "PAN 2", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.15},
+        {"label": "PAN 3", "category": "Retail", "lots_applied": 1, "allotment_probability": 0.15}
+      ],
+      "financing": {
+        "funding_mode": "Maximise OD",
+        "own_capital_available": 5000.0,
+        "own_capital_deployed": 0.0,
+        "fd_amount": 60000.0,
+        "fd_rate_pct": 7.0,
+        "od_ltv_pct": 90.0,
+        "od_rate_pct": 14.0,
+        "days_blocked": 12,
+        "opportunity_cost_rate_pct": 7.0,
+        "include_opportunity_cost": true
+      }
+    },
+    {
+      "name": "D. SME issue, thin GMP, long block, expensive money",
+      "notes": "A large SME lot on a thin premium with twelve days of blocked capital at 14%. The carry swamps the expected gain.",
+      "ipo": {
+        "name": "SME Thin (illustrative)",
+        "issue_price": 100.0,
+        "lot_size": 1200,
+        "gmp_value": 4.0,
+        "gmp_mode": "Absolute Rs",
+        "use_gmp_for_listing": true,
+        "holding_period_days": 3
+      },
+      "accounts": [
+        {"label": "Self (sNII)", "category": "sNII", "lots_applied": 2, "allotment_probability": 0.08, "lots_allotted_if_successful": 1.0}
+      ],
+      "financing": {
+        "funding_mode": "Maximise OD",
+        "own_capital_available": 10000.0,
+        "own_capital_deployed": 0.0,
+        "fd_amount": 300000.0,
+        "fd_rate_pct": 7.0,
+        "od_ltv_pct": 90.0,
+        "od_rate_pct": 14.0,
+        "processing_fee": 250.0,
+        "days_blocked": 12,
+        "opportunity_cost_rate_pct": 7.0,
+        "include_opportunity_cost": true
+      }
+    },
+    {
+      "name": "E. bNII leveraged bid for a lottery lot",
+      "notes": "Twenty lakh of borrowed money bid into a heavily oversubscribed non-institutional book where allotment is a lottery for a single lot. The classic leverage trap.",
+      "ipo": {
+        "name": "Hot Book bNII (illustrative)",
+        "issue_price": 250.0,
+        "lot_size": 60,
+        "gmp_value": 62.5,
+        "gmp_mode": "Absolute Rs",
+        "use_gmp_for_listing": true,
+        "holding_period_days": 1
+      },
+      "accounts": [
+        {"label": "Self (bNII)", "category": "bNII", "lots_applied": 134, "allotment_probability": 0.25, "lots_allotted_if_successful": 1.0}
+      ],
+      "financing": {
+        "funding_mode": "Maximise OD",
+        "own_capital_available": 50000.0,
+        "own_capital_deployed": 0.0,
+        "fd_amount": 2300000.0,
+        "fd_rate_pct": 7.25,
+        "od_ltv_pct": 90.0,
+        "od_rate_pct": 10.5,
+        "processing_fee": 1000.0,
+        "days_blocked": 7,
+        "opportunity_cost_rate_pct": 7.25,
+        "include_opportunity_cost": true
+      }
+    }
+  ]
+}
