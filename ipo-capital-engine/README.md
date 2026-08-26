@@ -1,5 +1,7 @@
 # IPO Capital Allocation & Financing Decision Engine
 
+[![Tests](https://github.com/thakerswapnil24-gif/IPO-Financing/actions/workflows/tests.yml/badge.svg)](https://github.com/thakerswapnil24-gif/IPO-Financing/actions/workflows/tests.yml)
+
 A quantitative tool for one question:
 
 > **Does the risk-adjusted return on my own equity justify the cost and the risk of the
@@ -83,6 +85,9 @@ pytest -q
 ## Project structure
 
 ```
+.github/workflows/
+└── tests.yml               CI: pytest on Python 3.11 and 3.12 (repository root)
+
 ipo-capital-engine/
 ├── app.py                  Streamlit dashboard (presentation only)
 ├── calculations.py         Core engine: capital, financing, expected value, break-even
@@ -427,6 +432,10 @@ print(risk.probability_of_loss, decision.verdict.value)
 ```bash
 pytest -q          # 147 tests
 ```
+
+CI runs the same suite on Python 3.11 and 3.12 for every push to `main` and every
+pull request, and then runs `example_analysis.py` end to end so a break in the
+command-line path fails the build too.
 
 The suite pins the arithmetic rather than the code's current output: expected values
 are derived by hand from the formulas above. Coverage includes basic IPO profit,
