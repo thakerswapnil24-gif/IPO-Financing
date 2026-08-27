@@ -1,0 +1,58 @@
+# Tooling configuration for the IPO capital allocation engine.
+#
+# The project is a Streamlit application rather than a distributable package, so
+# this file carries tool settings only - there is no build backend or package
+# metadata to maintain.
+
+[tool.ruff]
+# 88 is the Black/Ruff default. It also keeps source readable in GitHub's code
+# viewer on a narrow screen, where longer lines force horizontal scrolling.
+line-length = 88
+target-version = "py311"
+src = ["ipo-capital-engine"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes: undefined names, unused imports and variables
+    "I",    # isort: import ordering
+    "UP",   # pyupgrade: outdated syntax for the target Python
+    "B",    # flake8-bugbear: likely bugs and design problems
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RUF",  # Ruff's own rules
+]
+ignore = [
+    # The engine deliberately uses short mathematical names in formulas where a
+    # longer name would obscure the arithmetic being expressed.
+    "E741",
+    # __all__ is grouped by meaning rather than alphabetically (version.py lists
+    # the version before the flags derived from it, calculations.py lists inputs
+    # before results). Sorting would scatter related names.
+    "RUF022",
+    # str-mixin enums could be StrEnum on this Python, but swapping the base
+    # class changes how members render outside an explicit .value access. That
+    # is a runtime change for no functional gain, and this is a beta people are
+    # actively testing, so it stays as it is.
+    "UP042",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert on values rather than using them, and shadow fixtures by design.
+"tests/*" = ["B011"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "calculations",
+    "example_data",
+    "explanations",
+    "export",
+    "risk",
+    "scenarios",
+    "validation",
+    "version",
+]
+
+[tool.ruff.format]
+docstring-code-format = true

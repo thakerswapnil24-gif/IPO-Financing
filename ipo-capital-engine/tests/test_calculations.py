@@ -57,7 +57,9 @@ ZERO_COSTS = TransactionCostAssumptions(
     dp_charges_flat_sell=0.0,
     other_charges_flat=0.0,
 )
-ZERO_TAXES = TaxAssumptions(stcg_rate_pct=0.0, ltcg_rate_pct=0.0, cess_and_surcharge_pct=0.0)
+ZERO_TAXES = TaxAssumptions(
+    stcg_rate_pct=0.0, ltcg_rate_pct=0.0, cess_and_surcharge_pct=0.0
+)
 
 
 def frictionless(
@@ -288,12 +290,16 @@ def test_no_sell_leg_means_no_sell_side_charges():
 def test_short_term_capital_gains_tax_with_cess():
     taxes = TaxAssumptions(stcg_rate_pct=20.0, cess_and_surcharge_pct=4.0)
     # 2,000 gain, 40 of deductible costs -> 1,960 * 20% * 1.04
-    tax = compute_capital_gains_tax(2_000.0, holding_days=5, taxes=taxes, deductible_costs=40.0)
+    tax = compute_capital_gains_tax(
+        2_000.0, holding_days=5, taxes=taxes, deductible_costs=40.0
+    )
     assert tax == pytest.approx(1_960.0 * 0.20 * 1.04)
 
 
 def test_long_term_rate_applies_beyond_the_threshold():
-    taxes = TaxAssumptions(stcg_rate_pct=20.0, ltcg_rate_pct=12.5, ltcg_threshold_days=365)
+    taxes = TaxAssumptions(
+        stcg_rate_pct=20.0, ltcg_rate_pct=12.5, ltcg_threshold_days=365
+    )
     short = compute_capital_gains_tax(10_000.0, 365, taxes)
     long = compute_capital_gains_tax(10_000.0, 366, taxes)
     assert short == pytest.approx(10_000 * 0.20 * 1.04)
@@ -348,8 +354,8 @@ def test_certain_and_impossible_allotment_edge_cases():
 # ---------------------------------------------------------------------------
 # End-to-end expected value, hand-checked
 # ---------------------------------------------------------------------------
-BID_COST = 10_000 * 0.10 * 10 / 365           # 27.397260273972602
-HOLDING_CARRY = 10_000 * 0.10 * 5 / 365       # 13.698630136986301
+BID_COST = 10_000 * 0.10 * 10 / 365  # 27.397260273972602
+HOLDING_CARRY = 10_000 * 0.10 * 5 / 365  # 13.698630136986301
 
 
 def test_basic_ipo_profit_if_allotted():
@@ -371,7 +377,9 @@ def test_basic_ipo_profit_if_allotted():
 def test_expected_profit_is_probability_times_profit_less_unconditional_carry():
     result = analyze(frictionless(probability=0.25))
     assert result.expected_gross_profit == pytest.approx(500.0)
-    assert result.expected_financing_cost == pytest.approx(BID_COST + 0.25 * HOLDING_CARRY)
+    assert result.expected_financing_cost == pytest.approx(
+        BID_COST + 0.25 * HOLDING_CARRY
+    )
     assert result.expected_net_profit_cash == pytest.approx(
         500.0 - BID_COST - 0.25 * HOLDING_CARRY
     )
@@ -429,13 +437,15 @@ def test_multiple_accounts_scale_profit_by_hit_rate_but_cost_by_applications():
     single = analyze(frictionless(n_accounts=1, probability=0.2))
     triple = analyze(frictionless(n_accounts=3, probability=0.2))
     assert triple.capital.total_application_amount == pytest.approx(30_000.0)
-    assert triple.expected_gross_profit == pytest.approx(3 * single.expected_gross_profit)
+    assert triple.expected_gross_profit == pytest.approx(
+        3 * single.expected_gross_profit
+    )
     # Financing scales with every application, not just the allotted ones.
     assert triple.financing.od_cost_bidding_window == pytest.approx(3 * BID_COST)
     assert triple.expected_net_profit_cash == pytest.approx(
         1_200.0 - 3 * BID_COST - 3 * 0.2 * HOLDING_CARRY
     )
-    assert triple.allotment.p_zero == pytest.approx(0.8 ** 3)
+    assert triple.allotment.p_zero == pytest.approx(0.8**3)
     assert triple.expected_allotments == pytest.approx(0.6)
 
 
@@ -479,7 +489,9 @@ def test_mixed_funding_charges_od_and_opportunity_cost_pro_rata():
     hold_od = 10_000 * 0.6 * 0.10 * 5 / 365
     hold_opportunity = 10_000 * 0.4 * 0.07 * 5 / 365
     assert result.financing.od_cost_bidding_window == pytest.approx(bid_od)
-    assert result.financing.opportunity_cost_bidding_window == pytest.approx(bid_opportunity)
+    assert result.financing.opportunity_cost_bidding_window == pytest.approx(
+        bid_opportunity
+    )
     assert result.expected_net_profit_cash == pytest.approx(
         500.0 - bid_od - 0.25 * hold_od
     )
@@ -493,7 +505,11 @@ def test_mixed_funding_charges_od_and_opportunity_cost_pro_rata():
 def test_squaring_off_at_allotment_moves_carry_from_od_to_opportunity_cost():
     inputs = frictionless()
     financed = analyze(inputs)
-    squared = analyze(replace(inputs, financing=replace(inputs.financing, finance_holding_period=False)))
+    squared = analyze(
+        replace(
+            inputs, financing=replace(inputs.financing, finance_holding_period=False)
+        )
+    )
     assert financed.financing.expected_od_cost_holding_window > 0
     assert squared.financing.expected_od_cost_holding_window == 0.0
     assert squared.financing.expected_opportunity_cost_holding_window == pytest.approx(
@@ -505,7 +521,9 @@ def test_processing_fees_are_unconditional():
     inputs = frictionless(probability=0.0)
     inputs = replace(
         inputs,
-        financing=replace(inputs.financing, processing_fee=500.0, other_financing_charges=250.0),
+        financing=replace(
+            inputs.financing, processing_fee=500.0, other_financing_charges=250.0
+        ),
     )
     result = analyze(inputs)
     assert result.expected_net_profit_cash == pytest.approx(-BID_COST - 750.0)
@@ -515,7 +533,10 @@ def test_fd_interest_is_excluded_from_profit_unless_explicitly_counted():
     inputs = frictionless()
     default = analyze(inputs)
     counted = analyze(
-        replace(inputs, financing=replace(inputs.financing, count_fd_interest_as_income=True))
+        replace(
+            inputs,
+            financing=replace(inputs.financing, count_fd_interest_as_income=True),
+        )
     )
     fd_interest = 100_000 * 0.07 * 15 / 365
     assert default.financing.fd_interest_earned == pytest.approx(fd_interest)
@@ -563,7 +584,9 @@ def test_break_even_gmp_is_the_break_even_price_less_the_issue_price():
     assert result.break_even.gmp_if_allotted == pytest.approx(
         result.break_even.exit_price_if_allotted - 100.0
     )
-    assert result.break_even.gmp_expected_value == pytest.approx(1.2328767123287672, rel=1e-9)
+    assert result.break_even.gmp_expected_value == pytest.approx(
+        1.2328767123287672, rel=1e-9
+    )
     assert result.break_even.listing_gain_pct_expected_value == pytest.approx(
         1.2328767123287672, rel=1e-9
     )
@@ -592,14 +615,21 @@ def test_maximum_sustainable_od_rate():
     rate = max_sustainable_od_rate(inputs)
     assert rate == pytest.approx(expected, rel=1e-6)
     assert rate == pytest.approx(162.2222222, rel=1e-6)
-    at_the_limit = replace(inputs, financing=replace(inputs.financing, od_rate_pct=rate))
+    at_the_limit = replace(
+        inputs, financing=replace(inputs.financing, od_rate_pct=rate)
+    )
     assert expected_net_profit(at_the_limit) == pytest.approx(0.0, abs=1e-4)
 
 
 def test_maximum_sustainable_od_rate_is_undefined_when_the_trade_itself_loses():
     inputs = frictionless(gmp=-5.0)
     assert max_sustainable_od_rate(inputs) is None
-    assert expected_net_profit(replace(inputs, financing=replace(inputs.financing, od_rate_pct=0.0))) < 0
+    assert (
+        expected_net_profit(
+            replace(inputs, financing=replace(inputs.financing, od_rate_pct=0.0))
+        )
+        < 0
+    )
 
 
 def test_minimum_allotment_probability():
@@ -672,8 +702,12 @@ def test_no_intermediate_rounding_occurs():
 
 
 def test_doubling_the_holding_period_doubles_the_holding_leg_of_the_carry():
-    five = analyze(frictionless(holding_days=5)).financing.expected_od_cost_holding_window
-    ten = analyze(frictionless(holding_days=10)).financing.expected_od_cost_holding_window
+    five = analyze(
+        frictionless(holding_days=5)
+    ).financing.expected_od_cost_holding_window
+    ten = analyze(
+        frictionless(holding_days=10)
+    ).financing.expected_od_cost_holding_window
     assert ten == pytest.approx(2 * five)
 
 
@@ -763,13 +797,17 @@ def test_realistic_case_matches_a_line_by_line_hand_calculation():
     carry = 15_000.0 * 0.07 * 6 / 365
 
     assert account.gross_profit_if_allotted == pytest.approx(gross)
-    assert account.transaction_costs_if_allotted.total == pytest.approx(costs, rel=1e-12)
+    assert account.transaction_costs_if_allotted.total == pytest.approx(
+        costs, rel=1e-12
+    )
     assert costs == pytest.approx(61.0569665, rel=1e-9)
     assert account.tax_if_allotted == pytest.approx(tax, rel=1e-12)
     assert tax == pytest.approx(1_083.51215097, rel=1e-9)
     assert account.carry_cost_if_allotted == pytest.approx(carry, rel=1e-12)
     assert account.net_profit_if_allotted == pytest.approx(gross - costs - tax - carry)
-    assert result.expected_net_profit == pytest.approx(0.10 * (gross - costs - tax) - carry)
+    assert result.expected_net_profit == pytest.approx(
+        0.10 * (gross - costs - tax) - carry
+    )
     assert result.expected_net_profit == pytest.approx(393.28281428, rel=1e-9)
 
 
@@ -793,7 +831,9 @@ def test_the_same_trade_on_borrowed_money_earns_less():
     assert borrowed.funding.od_drawn == pytest.approx(15_000.0)
     assert borrowed.financing.od_cost_bidding_window == pytest.approx(interest)
     # Same gross profit, higher cost of money, so a lower net.
-    assert borrowed.expected_gross_profit == pytest.approx(own_funded.expected_gross_profit)
+    assert borrowed.expected_gross_profit == pytest.approx(
+        own_funded.expected_gross_profit
+    )
     assert borrowed.expected_net_profit < own_funded.expected_net_profit
 
 
@@ -805,7 +845,7 @@ def test_a_long_holding_period_switches_to_the_long_term_tax_rate():
             ipo=replace(realistic_inputs().ipo, holding_period_days=400),
         )
     )
-    costs, deductible = hand_computed_costs()
+    _costs, deductible = hand_computed_costs()
     assert long.accounts[0].tax_if_allotted == pytest.approx(
         (5_250.0 - deductible) * 0.125 * 1.04
     )

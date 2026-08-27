@@ -11,8 +11,8 @@ the caller can override.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
@@ -56,19 +56,23 @@ class ScenarioDefinition:
     """
 
     name: str
-    gmp_absolute: Optional[float] = None
+    gmp_absolute: float | None = None
     gmp_multiplier: float = 1.0
     allotment_probability_multiplier: float = 1.0
-    allotment_probability_override: Optional[float] = None
-    od_rate_pct_override: Optional[float] = None
-    holding_period_days_override: Optional[int] = None
-    exit_price_override: Optional[float] = None
+    allotment_probability_override: float | None = None
+    od_rate_pct_override: float | None = None
+    holding_period_days_override: int | None = None
+    exit_price_override: float | None = None
     description: str = ""
 
     def apply(self, base: AnalysisInputs) -> AnalysisInputs:
         """Return a new :class:`AnalysisInputs` with this scenario applied."""
         ipo = base.ipo
-        gmp = self.gmp_absolute if self.gmp_absolute is not None else ipo.gmp_absolute * self.gmp_multiplier
+        gmp = (
+            self.gmp_absolute
+            if self.gmp_absolute is not None
+            else ipo.gmp_absolute * self.gmp_multiplier
+        )
         ipo = replace(
             ipo,
             gmp_value=gmp,
@@ -84,7 +88,9 @@ class ScenarioDefinition:
             # The base case sold away from the listing price; preserve that
             # spread rather than silently forcing a listing-day exit.
             spread = base.ipo.expected_exit_price - base.ipo.expected_listing_price
-            ipo = replace(ipo, expected_exit_price_override=ipo.expected_listing_price + spread)
+            ipo = replace(
+                ipo, expected_exit_price_override=ipo.expected_listing_price + spread
+            )
 
         accounts = []
         for acct in base.accounts:
@@ -136,17 +142,17 @@ class ScenarioResult:
         return self.definition.name
 
 
-def default_scenarios() -> List[ScenarioDefinition]:
+def default_scenarios() -> list[ScenarioDefinition]:
     """The shipped bear / base / bull triple (all factors user-editable)."""
     return [DEFAULT_BEAR, DEFAULT_BASE, DEFAULT_BULL]
 
 
 def run_scenarios(
-    base: AnalysisInputs, definitions: Optional[Sequence[ScenarioDefinition]] = None
-) -> List[ScenarioResult]:
+    base: AnalysisInputs, definitions: Sequence[ScenarioDefinition] | None = None
+) -> list[ScenarioResult]:
     """Evaluate each scenario against the base inputs."""
     definitions = list(definitions) if definitions is not None else default_scenarios()
-    out: List[ScenarioResult] = []
+    out: list[ScenarioResult] = []
     for definition in definitions:
         scenario_inputs = definition.apply(base)
         out.append(
@@ -207,9 +213,7 @@ def sensitivity_grid(
     ``mutate(base, row_value, col_value)`` returns the modified inputs; ``metric``
     reduces those inputs to a single number (expected net profit by default).
     """
-    data = [
-        [float(metric(mutate(base, r, c))) for c in col_values] for r in row_values
-    ]
+    data = [[float(metric(mutate(base, r, c))) for c in col_values] for r in row_values]
     frame = pd.DataFrame(data, index=list(row_values), columns=list(col_values))
     frame.index.name = row_label
     frame.columns.name = col_label
@@ -262,7 +266,9 @@ def sensitivity_od_rate_vs_listing_gain(
 ) -> pd.DataFrame:
     """Expected net profit for each (OD rate %, listing gain %) pair."""
 
-    def mutate(inputs: AnalysisInputs, od_rate: float, gain_pct: float) -> AnalysisInputs:
+    def mutate(
+        inputs: AnalysisInputs, od_rate: float, gain_pct: float
+    ) -> AnalysisInputs:
         issue = inputs.ipo.issue_price
         ipo = replace(
             inputs.ipo,
@@ -300,11 +306,11 @@ class MonteCarloConfig:
     """
 
     n_simulations: int = 10_000
-    seed: Optional[int] = 42
+    seed: int | None = 42
 
     # Exit gain (% over issue price)
     gain_distribution: str = "normal"  # normal | triangular | uniform | fixed
-    gain_mean_pct: Optional[float] = None  # None -> the base-case exit gain
+    gain_mean_pct: float | None = None  # None -> the base-case exit gain
     gain_std_pct: float = 15.0
     gain_low_pct: float = -20.0
     gain_high_pct: float = 40.0
@@ -333,7 +339,7 @@ class MonteCarloResult:
     config: MonteCarloConfig
     expected_profit: float
     median_profit: float
-    percentiles: Dict[int, float]
+    percentiles: dict[int, float]
     probability_of_profit: float
     probability_of_loss: float
     worst_case: float
@@ -363,7 +369,7 @@ class MonteCarloResult:
 
 def _vector_transaction_costs(
     buy_value: np.ndarray, sell_value: np.ndarray, costs
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Vectorised twin of :func:`calculations.compute_transaction_costs`.
 
     Returns ``(total_costs, costs_deductible_against_capital_gains)``.
@@ -378,7 +384,9 @@ def _vector_transaction_costs(
         + np.where(buy_value > 0, costs.brokerage_flat_buy, 0.0)
         + np.where(sell_value > 0, costs.brokerage_flat_sell, 0.0)
     )
-    stt = buy_value * costs.stt_pct_buy / 100.0 + sell_value * costs.stt_pct_sell / 100.0
+    stt = (
+        buy_value * costs.stt_pct_buy / 100.0 + sell_value * costs.stt_pct_sell / 100.0
+    )
     exchange = traded * costs.exchange_txn_pct / 100.0
     sebi = traded * costs.sebi_turnover_pct / 100.0
     stamp = buy_value * costs.stamp_duty_pct_buy / 100.0
@@ -413,7 +421,9 @@ def _vector_tax(
     return gains_tax
 
 
-def _draw_gain_pct(cfg: MonteCarloConfig, base_gain: float, rng: np.random.Generator) -> np.ndarray:
+def _draw_gain_pct(
+    cfg: MonteCarloConfig, base_gain: float, rng: np.random.Generator
+) -> np.ndarray:
     n = cfg.n_simulations
     mean = cfg.gain_mean_pct if cfg.gain_mean_pct is not None else base_gain
     kind = cfg.gain_distribution.lower()
@@ -442,10 +452,14 @@ def _draw_probability(
         alpha = base_p * concentration
         beta = (1.0 - base_p) * concentration
         return rng.beta(max(alpha, 1e-6), max(beta, 1e-6), n)
-    raise ValueError(f"Unknown probability distribution: {cfg.probability_distribution!r}")
+    raise ValueError(
+        f"Unknown probability distribution: {cfg.probability_distribution!r}"
+    )
 
 
-def _draw_holding_days(cfg: MonteCarloConfig, base_days: int, rng: np.random.Generator) -> np.ndarray:
+def _draw_holding_days(
+    cfg: MonteCarloConfig, base_days: int, rng: np.random.Generator
+) -> np.ndarray:
     n = cfg.n_simulations
     kind = cfg.holding_distribution.lower()
     if kind == "fixed":
@@ -458,7 +472,9 @@ def _draw_holding_days(cfg: MonteCarloConfig, base_days: int, rng: np.random.Gen
     raise ValueError(f"Unknown holding distribution: {cfg.holding_distribution!r}")
 
 
-def _draw_od_rate(cfg: MonteCarloConfig, base_rate: float, rng: np.random.Generator) -> np.ndarray:
+def _draw_od_rate(
+    cfg: MonteCarloConfig, base_rate: float, rng: np.random.Generator
+) -> np.ndarray:
     n = cfg.n_simulations
     kind = cfg.od_rate_distribution.lower()
     if kind == "fixed":
@@ -466,12 +482,14 @@ def _draw_od_rate(cfg: MonteCarloConfig, base_rate: float, rng: np.random.Genera
     if kind == "normal":
         return np.maximum(rng.normal(base_rate, max(cfg.od_rate_std_pct, 0.0), n), 0.0)
     if kind == "uniform":
-        return np.maximum(rng.uniform(cfg.od_rate_low_pct, cfg.od_rate_high_pct, n), 0.0)
+        return np.maximum(
+            rng.uniform(cfg.od_rate_low_pct, cfg.od_rate_high_pct, n), 0.0
+        )
     raise ValueError(f"Unknown OD rate distribution: {cfg.od_rate_distribution!r}")
 
 
 def run_monte_carlo(
-    inputs: AnalysisInputs, config: Optional[MonteCarloConfig] = None
+    inputs: AnalysisInputs, config: MonteCarloConfig | None = None
 ) -> MonteCarloResult:
     """Simulate the joint effect of listing, allotment, holding and rate risk.
 
@@ -498,7 +516,9 @@ def run_monte_carlo(
 
     gain_pct = _draw_gain_pct(cfg, ipo.expected_exit_gain_pct, rng)
     exit_price = np.maximum(ipo.issue_price * (1.0 + gain_pct / 100.0), 0.0)
-    holding_days = np.maximum(_draw_holding_days(cfg, ipo.holding_period_days, rng), 0.0)
+    holding_days = np.maximum(
+        _draw_holding_days(cfg, ipo.holding_period_days, rng), 0.0
+    )
     od_rate = _draw_od_rate(cfg, fin.od_rate_pct, rng)
 
     profits = np.zeros(cfg.n_simulations)
@@ -510,7 +530,9 @@ def run_monte_carlo(
         sell_value = exit_price * shares
         gross = sell_value - investment
         buy_value = np.full(cfg.n_simulations, investment)
-        txn_total, txn_deductible = _vector_transaction_costs(buy_value, sell_value, inputs.costs)
+        txn_total, txn_deductible = _vector_transaction_costs(
+            buy_value, sell_value, inputs.costs
+        )
         tax = _vector_tax(
             gross,
             holding_days,
@@ -531,10 +553,16 @@ def run_monte_carlo(
     profits -= fin.processing_fee + fin.other_financing_charges
     if fin.count_fd_interest_as_income:
         profits += (
-            fin.fd_amount * (fin.fd_rate_pct / 100.0) * (bid_days + holding_days) / basis
+            fin.fd_amount
+            * (fin.fd_rate_pct / 100.0)
+            * (bid_days + holding_days)
+            / basis
         )
 
-    pct = {int(q): float(np.percentile(profits, q)) for q in (1, 5, 10, 25, 50, 75, 90, 95, 99)}
+    pct = {
+        int(q): float(np.percentile(profits, q))
+        for q in (1, 5, 10, 25, 50, 75, 90, 95, 99)
+    }
     tail = profits[profits <= pct[5]]
     return MonteCarloResult(
         profits=profits,
@@ -547,6 +575,8 @@ def run_monte_carlo(
         worst_case=float(np.min(profits)),
         best_case=float(np.max(profits)),
         std_dev=float(np.std(profits, ddof=1)) if len(profits) > 1 else 0.0,
-        expected_shortfall_5pct=float(np.mean(tail)) if tail.size else float(np.min(profits)),
+        expected_shortfall_5pct=float(np.mean(tail))
+        if tail.size
+        else float(np.min(profits)),
         allotment_counts=allotment_counts,
     )

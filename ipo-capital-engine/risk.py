@@ -10,9 +10,9 @@ market premium, an optimistic hit-rate, or cheap borrowed money.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -42,13 +42,13 @@ __all__ = [
 _MAX_DP_STATES = 200_000
 
 
-def _fmt_money(value: Optional[float]) -> str:
+def _fmt_money(value: float | None) -> str:
     if value is None:
         return "n/a"
     return f"Rs {value:,.0f}"
 
 
-def _fmt_pct(value: Optional[float]) -> str:
+def _fmt_pct(value: float | None) -> str:
     if value is None or (isinstance(value, float) and math.isinf(value)):
         return "n/a"
     return f"{value:.1%}"
@@ -67,8 +67,8 @@ class OutcomeDistribution:
     allotted and the financing cost is a pure loss.
     """
 
-    profits: Tuple[float, ...]
-    probabilities: Tuple[float, ...]
+    profits: tuple[float, ...]
+    probabilities: tuple[float, ...]
     exact: bool
 
     @property
@@ -78,26 +78,42 @@ class OutcomeDistribution:
     @property
     def probability_of_loss(self) -> float:
         return float(
-            sum(p for v, p in zip(self.profits, self.probabilities) if v < 0)
+            sum(
+                p
+                for v, p in zip(self.profits, self.probabilities, strict=True)
+                if v < 0
+            )
         )
 
     @property
     def probability_of_profit(self) -> float:
         return float(
-            sum(p for v, p in zip(self.profits, self.probabilities) if v > 0)
+            sum(
+                p
+                for v, p in zip(self.profits, self.probabilities, strict=True)
+                if v > 0
+            )
         )
 
     @property
     def expected_loss(self) -> float:
         """Probability-weighted loss (a negative number, 0 if losses impossible)."""
         return float(
-            sum(v * p for v, p in zip(self.profits, self.probabilities) if v < 0)
+            sum(
+                v * p
+                for v, p in zip(self.profits, self.probabilities, strict=True)
+                if v < 0
+            )
         )
 
     @property
     def expected_gain(self) -> float:
         return float(
-            sum(v * p for v, p in zip(self.profits, self.probabilities) if v > 0)
+            sum(
+                v * p
+                for v, p in zip(self.profits, self.probabilities, strict=True)
+                if v > 0
+            )
         )
 
     @property
@@ -123,7 +139,7 @@ def outcome_distribution(result: AnalysisResult) -> OutcomeDistribution:
     ``exact=False`` is returned with a two-point approximation.
     """
     fixed_cost = -result.net_profit_if_no_allotment  # positive: cost incurred anyway
-    states: Dict[int, float] = {0: 1.0}
+    states: dict[int, float] = {0: 1.0}
     scale = 1_000_000  # merge values that agree to within 1e-6 rupees
 
     for account in result.accounts:
@@ -139,16 +155,19 @@ def outcome_distribution(result: AnalysisResult) -> OutcomeDistribution:
             )
         )
         p = account.allotment_probability
-        nxt: Dict[int, float] = {}
+        nxt: dict[int, float] = {}
         for key, prob in states.items():
             value = key / scale
             nxt[key] = nxt.get(key, 0.0) + prob * (1.0 - p)
-            hit = int(round((value + unit) * scale))
+            hit = round((value + unit) * scale)
             nxt[hit] = nxt.get(hit, 0.0) + prob * p
         states = nxt
         if len(states) > _MAX_DP_STATES:
             return OutcomeDistribution(
-                profits=(result.net_profit_if_no_allotment, result.net_profit_if_all_allotted),
+                profits=(
+                    result.net_profit_if_no_allotment,
+                    result.net_profit_if_all_allotted,
+                ),
                 probabilities=(result.allotment.p_zero, 1.0 - result.allotment.p_zero),
                 exact=False,
             )
@@ -171,20 +190,20 @@ class RiskMetrics:
     expected_gain: float
     maximum_loss: float
     maximum_gain: float
-    profit_to_loss_ratio: Optional[float]
-    financing_cost_share_of_gross_profit: Optional[float]
-    financing_cost_share_of_net_profit: Optional[float]
-    gmp_margin_of_safety: Optional[float]
-    probability_margin_of_safety: Optional[float]
-    od_rate_headroom_pct: Optional[float]
-    gmp_elasticity: Optional[float]
-    probability_elasticity: Optional[float]
+    profit_to_loss_ratio: float | None
+    financing_cost_share_of_gross_profit: float | None
+    financing_cost_share_of_net_profit: float | None
+    gmp_margin_of_safety: float | None
+    probability_margin_of_safety: float | None
+    od_rate_headroom_pct: float | None
+    gmp_elasticity: float | None
+    probability_elasticity: float | None
     profit_if_lists_flat: float
     profit_if_lists_10pct_below: float
-    bear_case_profit: Optional[float]
-    bear_loss_share_of_equity: Optional[float]
+    bear_case_profit: float | None
+    bear_loss_share_of_equity: float | None
     distribution: OutcomeDistribution
-    flags: Tuple[str, ...]
+    flags: tuple[str, ...]
 
     def to_frame(self) -> pd.DataFrame:
         rows = [
@@ -195,15 +214,30 @@ class RiskMetrics:
             ("Maximum modelled loss", self.maximum_loss),
             ("Maximum modelled gain", self.maximum_gain),
             ("Profit / loss ratio", self.profit_to_loss_ratio),
-            ("Financing cost / expected gross profit", self.financing_cost_share_of_gross_profit),
-            ("Financing cost / expected net profit", self.financing_cost_share_of_net_profit),
+            (
+                "Financing cost / expected gross profit",
+                self.financing_cost_share_of_gross_profit,
+            ),
+            (
+                "Financing cost / expected net profit",
+                self.financing_cost_share_of_net_profit,
+            ),
             ("GMP margin of safety", self.gmp_margin_of_safety),
-            ("Allotment probability margin of safety", self.probability_margin_of_safety),
+            (
+                "Allotment probability margin of safety",
+                self.probability_margin_of_safety,
+            ),
             ("OD rate headroom (pp)", self.od_rate_headroom_pct),
             ("Elasticity of profit to GMP", self.gmp_elasticity),
-            ("Elasticity of profit to allotment probability", self.probability_elasticity),
+            (
+                "Elasticity of profit to allotment probability",
+                self.probability_elasticity,
+            ),
             ("Profit if the stock lists flat", self.profit_if_lists_flat),
-            ("Profit if the stock lists 10% below issue", self.profit_if_lists_10pct_below),
+            (
+                "Profit if the stock lists 10% below issue",
+                self.profit_if_lists_10pct_below,
+            ),
             ("Bear-case profit", self.bear_case_profit),
             ("Bear-case loss / own equity", self.bear_loss_share_of_equity),
         ]
@@ -211,8 +245,11 @@ class RiskMetrics:
 
 
 def _elasticity(
-    base_inputs: AnalysisInputs, bumped_inputs: AnalysisInputs, driver_base: float, bump: float
-) -> Optional[float]:
+    base_inputs: AnalysisInputs,
+    bumped_inputs: AnalysisInputs,
+    driver_base: float,
+    bump: float,
+) -> float | None:
     """Percentage change in expected profit per percentage change in a driver."""
     base_profit = expected_net_profit(base_inputs)
     if abs(base_profit) < 1e-9 or abs(driver_base) < 1e-12 or abs(bump) < 1e-12:
@@ -226,7 +263,7 @@ def _elasticity(
 
 
 def compute_risk_metrics(
-    result: AnalysisResult, bear: Optional[ScenarioDefinition] = None
+    result: AnalysisResult, bear: ScenarioDefinition | None = None
 ) -> RiskMetrics:
     """Derive the full risk picture from a completed analysis."""
     inputs = result.inputs
@@ -235,7 +272,9 @@ def compute_risk_metrics(
 
     expected_loss = dist.expected_loss
     expected_gain = dist.expected_gain
-    pl_ratio = None if abs(expected_loss) < 1e-12 else expected_gain / abs(expected_loss)
+    pl_ratio = (
+        None if abs(expected_loss) < 1e-12 else expected_gain / abs(expected_loss)
+    )
 
     gross = result.expected_gross_profit
     financing = result.expected_financing_cost + result.expected_opportunity_cost
@@ -253,7 +292,7 @@ def compute_risk_metrics(
     net = result.expected_net_profit
     premium = ipo.expected_exit_price - ipo.issue_price
     be_price = result.break_even.exit_price_expected_value
-    gmp_mos: Optional[float] = None
+    gmp_mos: float | None = None
     if premium > 1e-9 and be_price is not None:
         gmp_mos = (ipo.expected_exit_price - be_price) / premium
     elif premium <= 1e-9:
@@ -266,7 +305,7 @@ def compute_risk_metrics(
         if inputs.accounts
         else 0.0
     )
-    prob_mos: Optional[float] = None
+    prob_mos: float | None = None
     if min_p is not None and base_p > 1e-12:
         prob_mos = (base_p - min_p) / base_p
     elif base_p > 1e-12:
@@ -317,7 +356,7 @@ def compute_risk_metrics(
     equity = result.capital.economic_capital_at_risk
     bear_share = None if equity <= 1e-12 else -min(bear_profit, 0.0) / equity
 
-    flags: List[str] = []
+    flags: list[str] = []
     if abs(ipo.gmp_absolute) > 1e-9 and ipo.use_gmp_for_listing:
         flags.append(
             "The entire expected gain is derived from GMP, an unregulated grey "
@@ -332,7 +371,8 @@ def compute_risk_metrics(
         needed = result.break_even.gmp_expected_value
         flags.append(
             "The assumed premium is already too small: breaking even needs a GMP of "
-            f"{_fmt_money(needed)} against the {_fmt_money(ipo.gmp_absolute)} you assumed."
+            f"{_fmt_money(needed)} against the {_fmt_money(ipo.gmp_absolute)} you "
+            f"assumed."
         )
     if prob_mos is not None and 0 <= prob_mos < 0.30:
         flags.append(
@@ -472,9 +512,9 @@ class DecisionCheck:
 @dataclass(frozen=True)
 class DecisionOutcome:
     verdict: Verdict
-    checks: Tuple[DecisionCheck, ...]
+    checks: tuple[DecisionCheck, ...]
     headline: str
-    rationale: Tuple[str, ...]
+    rationale: tuple[str, ...]
     thresholds: DecisionThresholds
 
     @property
@@ -505,7 +545,7 @@ DISCLAIMER = (
 def evaluate_decision(
     result: AnalysisResult,
     risk: RiskMetrics,
-    thresholds: Optional[DecisionThresholds] = None,
+    thresholds: DecisionThresholds | None = None,
 ) -> DecisionOutcome:
     """Apply the rules-based GO / BORDERLINE / NO-GO framework.
 
@@ -516,7 +556,7 @@ def evaluate_decision(
     net = result.expected_net_profit
     od_rate = result.inputs.financing.od_rate_pct
     annualised = result.capital.annualized_return_on_economic_capital
-    checks: List[DecisionCheck] = []
+    checks: list[DecisionCheck] = []
 
     checks.append(
         DecisionCheck(
@@ -537,12 +577,15 @@ def evaluate_decision(
         spread = annualised * 100.0 - od_rate
         spread_ok = spread >= th.min_annualised_spread_over_od_pct
         spread_detail = (
-            f"Annualised return on own equity {annualised:.1%} vs OD rate {od_rate:.2f}% "
+            f"Annualised return on own equity {annualised:.1%} vs OD rate "
+            f"{od_rate:.2f}% "
             f"-> spread of {spread:.1f} pp (required: "
             f"{th.min_annualised_spread_over_od_pct:.1f} pp)."
         )
     checks.append(
-        DecisionCheck("Return clears the cost of borrowed money", spread_ok, True, spread_detail)
+        DecisionCheck(
+            "Return clears the cost of borrowed money", spread_ok, True, spread_detail
+        )
     )
 
     share = risk.financing_cost_share_of_gross_profit
@@ -552,20 +595,24 @@ def evaluate_decision(
             "Financing cost does not consume the profit",
             bool(share_ok),
             True,
-            f"Financing + opportunity cost is {_fmt_pct(share)} of expected gross profit "
+            f"Financing + opportunity cost is {_fmt_pct(share)} of expected gross "
+            f"profit "
             f"(limit {th.max_financing_share_of_gross:.0%}).",
         )
     )
 
     be_gain = result.break_even.listing_gain_pct_expected_value
-    be_ok = be_gain is not None and be_gain <= th.max_plausible_breakeven_listing_gain_pct
+    be_ok = (
+        be_gain is not None and be_gain <= th.max_plausible_breakeven_listing_gain_pct
+    )
     checks.append(
         DecisionCheck(
             "Break-even listing gain is realistic",
             bool(be_ok),
             True,
             f"The issue must list {be_gain:.2f}% above the issue price just to break "
-            f"even (plausibility limit {th.max_plausible_breakeven_listing_gain_pct:.1f}%)."
+            f"even (plausibility limit "
+            f"{th.max_plausible_breakeven_listing_gain_pct:.1f}%)."
             if be_gain is not None
             else "Break-even listing price could not be solved.",
         )
@@ -645,14 +692,18 @@ def evaluate_decision(
         verdict = Verdict.GO
         headline = "Every hard and soft rule passes on your assumptions"
 
-    rationale: List[str] = []
+    rationale: list[str] = []
     if hard_failures:
         rationale.append(
-            "Hard rules failed: " + "; ".join(c.name.lower() for c in hard_failures) + "."
+            "Hard rules failed: "
+            + "; ".join(c.name.lower() for c in hard_failures)
+            + "."
         )
     if soft_failures:
         rationale.append(
-            "Soft rules flagged: " + "; ".join(c.name.lower() for c in soft_failures) + "."
+            "Soft rules flagged: "
+            + "; ".join(c.name.lower() for c in soft_failures)
+            + "."
         )
     if not hard_failures and not soft_failures:
         rationale.append(
@@ -675,8 +726,8 @@ def evaluate_decision(
 # Portfolio-level comparison
 # ---------------------------------------------------------------------------
 def compare_opportunities(
-    opportunities: Sequence[Tuple[str, AnalysisInputs]],
-    thresholds: Optional[DecisionThresholds] = None,
+    opportunities: Sequence[tuple[str, AnalysisInputs]],
+    thresholds: DecisionThresholds | None = None,
 ) -> pd.DataFrame:
     """Rank several IPO opportunities side by side.
 

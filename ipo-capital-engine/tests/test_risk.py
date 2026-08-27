@@ -34,7 +34,7 @@ def test_outcome_distribution_reproduces_the_analytic_expected_value():
 def test_single_account_has_two_outcomes_priced_by_hand():
     result = analyze(frictionless(probability=0.25))
     distribution = outcome_distribution(result)
-    outcomes = dict(zip(distribution.profits, distribution.probabilities))
+    outcomes = dict(zip(distribution.profits, distribution.probabilities, strict=True))
     loss = -BID_COST
     win = 2_000.0 - BID_COST - HOLDING_CARRY
     assert any(value == pytest.approx(loss, abs=1e-4) for value in outcomes)
@@ -151,7 +151,10 @@ def decide(inputs, thresholds=None):
 def test_negative_expected_value_is_always_a_no_go():
     decision = decide(frictionless(gmp=1.0, probability=0.02))
     assert decision.verdict is Verdict.NO_GO
-    assert any(c.name.startswith("Expected net profit") and not c.passed for c in decision.checks)
+    assert any(
+        c.name.startswith("Expected net profit") and not c.passed
+        for c in decision.checks
+    )
 
 
 def test_a_strong_case_with_several_accounts_is_a_go():

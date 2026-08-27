@@ -3,6 +3,31 @@
 All notable changes to this project are recorded here. Versions follow
 [PEP 440](https://peps.python.org/pep-0440/); `bN` suffixes mark beta builds.
 
+## Unreleased
+
+### Changed
+
+- **Formatted the whole codebase with Ruff** and pinned the configuration in
+  `pyproject.toml` (88 columns, so GitHub's code viewer never scrolls sideways
+  on a narrow screen). 68 over-long string literals were rewrapped, and the
+  transformation was verified by asserting the parsed AST came out identical
+  for every file, then by diffing the full worked-example output against the
+  previous commit: 582 lines, byte for byte the same.
+- `zip()` calls over parallel sequences now pass `strict=True`, so a length
+  mismatch fails loudly instead of silently truncating.
+- Extracted a few deeply nested f-string expressions into named locals, and
+  lifted the version-badge CSS out of the markup string.
+
+### Added
+
+- A `lint` CI job running `ruff format --check` and `ruff check`, so drifted
+  formatting blocks a merge rather than being silently rewritten.
+- `.editorconfig` and `.gitattributes` to keep indentation and line endings
+  consistent across editors and platforms.
+- Four packaging tests covering the formatter configuration, the pinned Ruff
+  version, the lint job, and a hard assertion that no source line exceeds 88
+  characters.
+
 ## [0.1.0b1] - 2026-08-27
 
 First beta, packaged for live testing.

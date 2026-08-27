@@ -13,7 +13,14 @@ from pathlib import Path
 
 import pytest
 
-from version import BETA_NOTICE, IS_PRERELEASE, RELEASE_NAME, RELEASE_STAGE, VERSION, __version__
+from version import (
+    BETA_NOTICE,
+    IS_PRERELEASE,
+    RELEASE_NAME,
+    RELEASE_STAGE,
+    VERSION,
+    __version__,
+)
 
 PROJECT = Path(__file__).resolve().parents[1]
 REPO = PROJECT.parent
@@ -27,12 +34,12 @@ PEP440 = re.compile(r"^\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?$")
 # ---------------------------------------------------------------------------
 def test_version_is_a_valid_pep440_string():
     assert PEP440.match(__version__), f"{__version__!r} is not a PEP 440 release"
-    assert VERSION == __version__
+    assert __version__ == VERSION
 
 
 def test_release_stage_and_prerelease_flag_agree():
     assert RELEASE_STAGE in {"alpha", "beta", "rc", "stable"}
-    assert IS_PRERELEASE == (RELEASE_STAGE != "stable")
+    assert (RELEASE_STAGE != "stable") == IS_PRERELEASE
     if IS_PRERELEASE:
         # A pre-release version string must carry a pre-release segment.
         assert re.search(r"(a|b|rc)\d+$", __version__), (
@@ -175,11 +182,48 @@ def test_dockerignore_excludes_the_git_directory_and_caches():
 # ---------------------------------------------------------------------------
 # Repository-level release assets
 # ---------------------------------------------------------------------------
-def test_ci_workflow_covers_tests_boot_and_container():
-    workflow = (REPO / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
-    for job in ("pytest:", "smoke:", "docker:"):
+def _workflow() -> str:
+    return (REPO / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+
+
+def test_ci_workflow_covers_lint_tests_boot_and_container():
+    workflow = _workflow()
+    for job in ("lint:", "pytest:", "smoke:", "docker:"):
         assert job in workflow, f"the workflow is missing the {job.strip(':')} job"
     assert "_stcore/health" in workflow, "CI must verify the app actually serves"
+
+
+def test_ci_checks_formatting_without_rewriting_it():
+    workflow = _workflow()
+    assert "ruff format --check" in workflow, (
+        "CI must fail on drifted formatting rather than silently reformatting"
+    )
+    assert "ruff check" in workflow
+
+
+def test_the_formatter_configuration_is_committed():
+    config = (REPO / "pyproject.toml").read_text(encoding="utf-8")
+    assert "[tool.ruff]" in config
+    assert "line-length = 88" in config, (
+        "the width must be pinned so every contributor formats identically"
+    )
+
+
+def test_ruff_is_pinned_exactly_for_reproducible_formatting():
+    dev = (PROJECT / "requirements-dev.txt").read_text(encoding="utf-8")
+    assert "ruff==" in dev, (
+        "a floating ruff can reformat the tree on a minor release and redden CI"
+    )
+
+
+def test_no_source_line_exceeds_the_configured_width():
+    """The point of the width is that GitHub's viewer never scrolls sideways."""
+    offenders = []
+    for path in sorted(PROJECT.glob("*.py")) + sorted((PROJECT / "tests").glob("*.py")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if len(line) > 88:
+                offenders.append(f"{path.name}:{number} ({len(line)} chars)")
+    assert not offenders, "lines over 88 characters: " + ", ".join(offenders[:10])
 
 
 def test_issue_templates_exist_for_beta_feedback():
@@ -213,7 +257,9 @@ def test_the_live_url_is_documented_everywhere_a_tester_would_look():
         assert LIVE_URL in (PROJECT / name).read_text(encoding="utf-8"), (
             f"{name} does not tell anyone where the beta actually runs"
         )
-    config = (REPO / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(encoding="utf-8")
+    config = (REPO / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(
+        encoding="utf-8"
+    )
     assert LIVE_URL in config
 
 

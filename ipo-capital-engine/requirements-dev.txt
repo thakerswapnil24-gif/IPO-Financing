@@ -4,3 +4,7 @@
 -r requirements.txt
 
 pytest>=7.4,<10
+
+# Formatter and linter. Pinned exactly: a floating version can reformat the
+# whole tree on a minor release and turn CI red on an unrelated change.
+ruff==0.15.8

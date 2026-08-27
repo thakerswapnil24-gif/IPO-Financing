@@ -10,17 +10,17 @@ from __future__ import annotations
 
 import io
 import textwrap
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Sequence, Tuple
+from datetime import UTC, datetime
 
 import pandas as pd
 
 from calculations import AnalysisResult, AssumptionRecord, assumption_ledger
 from explanations import explanations_frame
 from risk import DecisionOutcome, RiskMetrics
-from version import RELEASE_NAME
 from scenarios import MonteCarloResult, ScenarioResult, scenarios_to_frame
+from version import RELEASE_NAME
 
 __all__ = [
     "ReportBundle",
@@ -37,16 +37,14 @@ class ReportBundle:
 
     title: str
     generated_at: str
-    tables: Dict[str, pd.DataFrame]
+    tables: dict[str, pd.DataFrame]
 
-    def sheet_names(self) -> List[str]:
+    def sheet_names(self) -> list[str]:
         return list(self.tables)
 
 
-def _kv_frame(mapping: Dict[str, object]) -> pd.DataFrame:
-    return pd.DataFrame(
-        [{"Item": k, "Value": v} for k, v in mapping.items()]
-    )
+def _kv_frame(mapping: dict[str, object]) -> pd.DataFrame:
+    return pd.DataFrame([{"Item": k, "Value": v} for k, v in mapping.items()])
 
 
 def _ledger_frame(records: Sequence[AssumptionRecord]) -> pd.DataFrame:
@@ -92,13 +90,13 @@ def build_report(
     result: AnalysisResult,
     risk: RiskMetrics,
     decision: DecisionOutcome,
-    scenarios: Optional[Sequence[ScenarioResult]] = None,
-    sensitivities: Optional[Dict[str, pd.DataFrame]] = None,
-    monte_carlo: Optional[MonteCarloResult] = None,
+    scenarios: Sequence[ScenarioResult] | None = None,
+    sensitivities: dict[str, pd.DataFrame] | None = None,
+    monte_carlo: MonteCarloResult | None = None,
 ) -> ReportBundle:
     """Assemble every table that belongs in the exported analysis."""
     inputs = result.inputs
-    tables: Dict[str, pd.DataFrame] = {}
+    tables: dict[str, pd.DataFrame] = {}
 
     tables["Summary"] = _kv_frame(result.summary_dict())
     tables["Decision"] = pd.concat(
@@ -109,7 +107,12 @@ def build_report(
                     "Headline": decision.headline,
                 }
             ),
-            pd.DataFrame({"Item": ["Rationale"] * len(decision.rationale), "Value": list(decision.rationale)}),
+            pd.DataFrame(
+                {
+                    "Item": ["Rationale"] * len(decision.rationale),
+                    "Value": list(decision.rationale),
+                }
+            ),
         ],
         ignore_index=True,
     )
@@ -132,7 +135,9 @@ def build_report(
             "FD collateral locked": result.funding.fd_collateral_locked,
             "Economic capital at risk": result.capital.economic_capital_at_risk,
             "OD cost (bidding window)": result.financing.od_cost_bidding_window,
-            "Expected OD cost (holding window)": result.financing.expected_od_cost_holding_window,
+            "Expected OD cost (holding window)": (
+                result.financing.expected_od_cost_holding_window
+            ),
             "Processing fee": result.financing.processing_fee,
             "Other financing charges": result.financing.other_charges,
             "Opportunity cost of own capital": result.expected_opportunity_cost,
@@ -158,7 +163,7 @@ def build_report(
     return ReportBundle(
         title=f"IPO financing analysis - {inputs.ipo.name}",
         generated_at=(
-            f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} "
+            f"{datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')} "
             f"by IPO Capital Engine {RELEASE_NAME}"
         ),
         tables=tables,
@@ -186,7 +191,7 @@ def bundle_to_excel(bundle: ReportBundle) -> bytes:
             while sheet in used:
                 counter += 1
                 suffix = f"_{counter}"
-                sheet = f"{name[:31 - len(suffix)]}{suffix}"
+                sheet = f"{name[: 31 - len(suffix)]}{suffix}"
             used.add(sheet)
             frame.to_excel(writer, sheet_name=sheet, index=False)
     return output.getvalue()
@@ -223,7 +228,7 @@ def _format_value(value: object) -> str:
     return str(value)
 
 
-def _frame_to_lines(frame: pd.DataFrame, max_rows: int = 60) -> List[str]:
+def _frame_to_lines(frame: pd.DataFrame, max_rows: int = 60) -> list[str]:
     """Render a DataFrame as fixed-width text lines that fit the page."""
     if frame.empty:
         return ["(no rows)"]
@@ -236,7 +241,11 @@ def _frame_to_lines(frame: pd.DataFrame, max_rows: int = 60) -> List[str]:
     budget = _MONO_CHARS_PER_LINE - (n_cols - 1)
     widths = []
     for column in display.columns:
-        widths.append(max(len(column), *(len(v) for v in display[column])) if len(display) else len(column))
+        widths.append(
+            max(len(column), *(len(v) for v in display[column]))
+            if len(display)
+            else len(column)
+        )
     total = sum(widths)
     if total > budget:  # shrink the widest columns first
         scale = budget / total
@@ -244,22 +253,27 @@ def _frame_to_lines(frame: pd.DataFrame, max_rows: int = 60) -> List[str]:
 
     def row_text(cells: Sequence[str]) -> str:
         parts = []
-        for cell, width in zip(cells, widths):
+        for cell, width in zip(cells, widths, strict=True):
             cell = cell if len(cell) <= width else cell[: width - 1] + "~"
             parts.append(cell.ljust(width))
         return " ".join(parts).rstrip()
 
-    lines = [row_text(list(display.columns)), "-" * min(_MONO_CHARS_PER_LINE, sum(widths) + n_cols - 1)]
+    lines = [
+        row_text(list(display.columns)),
+        "-" * min(_MONO_CHARS_PER_LINE, sum(widths) + n_cols - 1),
+    ]
     for _, row in display.iterrows():
         lines.append(row_text([row[c] for c in display.columns]))
     if len(frame) > max_rows:
-        lines.append(f"... {len(frame) - max_rows} more rows (see the CSV or Excel export)")
+        lines.append(
+            f"... {len(frame) - max_rows} more rows (see the CSV or Excel export)"
+        )
     return lines
 
 
-def _build_pdf(pages: Sequence[Sequence[Tuple[str, str]]]) -> bytes:
+def _build_pdf(pages: Sequence[Sequence[tuple[str, str]]]) -> bytes:
     """Assemble PDF bytes from pages of ``(style, text)`` lines."""
-    objects: List[bytes] = []
+    objects: list[bytes] = []
 
     def add(payload: bytes) -> int:
         objects.append(payload)
@@ -273,7 +287,7 @@ def _build_pdf(pages: Sequence[Sequence[Tuple[str, str]]]) -> bytes:
     regular_id = add(font_regular)
     bold_id = add(font_bold)
 
-    page_ids: List[int] = []
+    page_ids: list[int] = []
     for lines in pages:
         stream = io.StringIO()
         stream.write("BT\n")
@@ -291,7 +305,11 @@ def _build_pdf(pages: Sequence[Sequence[Tuple[str, str]]]) -> bytes:
         stream.write("ET")
         content = stream.getvalue().encode("latin-1", "replace")
         content_id = add(
-            b"<< /Length " + str(len(content)).encode() + b" >>\nstream\n" + content + b"\nendstream"
+            b"<< /Length "
+            + str(len(content)).encode()
+            + b" >>\nstream\n"
+            + content
+            + b"\nendstream"
         )
         page_id = add(b"")
         page_ids.append(page_id)
@@ -305,7 +323,9 @@ def _build_pdf(pages: Sequence[Sequence[Tuple[str, str]]]) -> bytes:
     objects[pages_id - 1] = (
         f"<< /Type /Pages /Kids [{kids}] /Count {len(page_ids)} >>"
     ).encode("latin-1")
-    objects[catalog_id - 1] = f"<< /Type /Catalog /Pages {pages_id} 0 R >>".encode("latin-1")
+    objects[catalog_id - 1] = f"<< /Type /Catalog /Pages {pages_id} 0 R >>".encode(
+        "latin-1"
+    )
 
     out = io.BytesIO()
     out.write(b"%PDF-1.4\n")
@@ -329,11 +349,11 @@ def _build_pdf(pages: Sequence[Sequence[Tuple[str, str]]]) -> bytes:
 
 def bundle_to_pdf(
     bundle: ReportBundle,
-    include_tables: Optional[Sequence[str]] = None,
+    include_tables: Sequence[str] | None = None,
     max_rows_per_table: int = 45,
 ) -> bytes:
     """Render the report bundle as a plain-text A4 PDF summary."""
-    lines: List[Tuple[str, str]] = [
+    lines: list[tuple[str, str]] = [
         ("title", bundle.title),
         ("body", f"Generated {bundle.generated_at}"),
         ("body", ""),
@@ -351,12 +371,13 @@ def bundle_to_pdf(
     lines.append(
         (
             "body",
-            "Quantitative decision framework based on user-supplied assumptions. Not investment advice.",
+            "Quantitative decision framework based on user-supplied assumptions. Not "
+            "investment advice.",
         )
     )
 
-    pages: List[List[Tuple[str, str]]] = []
-    current: List[Tuple[str, str]] = []
+    pages: list[list[tuple[str, str]]] = []
+    current: list[tuple[str, str]] = []
     for entry in lines:
         if len(current) >= _LINES_PER_PAGE:
             pages.append(current)

@@ -24,7 +24,11 @@ from validation import RETAIL_LIMIT, Severity, validate_inputs
 def valid_inputs() -> AnalysisInputs:
     return AnalysisInputs(
         ipo=IPOAssumptions(
-            name="Test IPO", issue_price=100.0, lot_size=100, gmp_value=20.0, holding_period_days=2
+            name="Test IPO",
+            issue_price=100.0,
+            lot_size=100,
+            gmp_value=20.0,
+            holding_period_days=2,
         ),
         accounts=(ApplicationAccount(label="PAN 1", allotment_probability=0.2),),
         financing=FinancingAssumptions(
@@ -40,9 +44,7 @@ def valid_inputs() -> AnalysisInputs:
 
 def messages(report, severity=None):
     return [
-        i.message
-        for i in report.issues
-        if severity is None or i.severity is severity
+        i.message for i in report.issues if severity is None or i.severity is severity
     ]
 
 
@@ -55,7 +57,9 @@ def test_a_well_formed_set_of_inputs_produces_no_errors():
 @pytest.mark.parametrize("price", [0.0, -50.0])
 def test_non_positive_issue_price_is_rejected(price):
     inputs = valid_inputs()
-    report = validate_inputs(replace(inputs, ipo=replace(inputs.ipo, issue_price=price)))
+    report = validate_inputs(
+        replace(inputs, ipo=replace(inputs.ipo, issue_price=price))
+    )
     assert not report.is_valid
     assert any("Issue price" in i.field for i in report.errors)
 
@@ -96,7 +100,10 @@ def test_negative_interest_rates_are_rejected():
     report = validate_inputs(
         replace(inputs, financing=replace(inputs.financing, od_rate_pct=-5.0))
     )
-    assert any("Interest rates cannot be negative." in m for m in messages(report, Severity.ERROR))
+    assert any(
+        "Interest rates cannot be negative." in m
+        for m in messages(report, Severity.ERROR)
+    )
 
 
 def test_od_ltv_above_100_percent_is_rejected():
@@ -130,23 +137,30 @@ def test_retail_application_above_the_sebi_cap_is_rejected():
     inputs = valid_inputs()
     account = replace(inputs.accounts[0], lots_applied=25, category=IPOCategory.RETAIL)
     financing = replace(inputs.financing, fd_amount=1_000_000.0)
-    report = validate_inputs(
-        replace(inputs, accounts=(account,), financing=financing)
-    )
+    report = validate_inputs(replace(inputs, accounts=(account,), financing=financing))
     assert not report.is_valid
-    assert any(str(int(RETAIL_LIMIT)) in m.replace(",", "") for m in messages(report, Severity.ERROR))
+    assert any(
+        str(int(RETAIL_LIMIT)) in m.replace(",", "")
+        for m in messages(report, Severity.ERROR)
+    )
 
 
 def test_allotment_above_lots_applied_is_rejected():
     inputs = valid_inputs()
-    account = replace(inputs.accounts[0], lots_applied=1, lots_allotted_if_successful=3.0)
+    account = replace(
+        inputs.accounts[0], lots_applied=1, lots_allotted_if_successful=3.0
+    )
     report = validate_inputs(inputs.with_accounts([account]))
-    assert any("cannot exceed lots applied" in m for m in messages(report, Severity.ERROR))
+    assert any(
+        "cannot exceed lots applied" in m for m in messages(report, Severity.ERROR)
+    )
 
 
 def test_missing_listing_price_when_gmp_is_disabled_is_rejected():
     inputs = valid_inputs()
-    ipo = replace(inputs.ipo, use_gmp_for_listing=False, expected_listing_price_override=None)
+    ipo = replace(
+        inputs.ipo, use_gmp_for_listing=False, expected_listing_price_override=None
+    )
     report = validate_inputs(replace(inputs, ipo=ipo))
     assert any("listing price" in m for m in messages(report, Severity.ERROR))
 
@@ -173,7 +187,10 @@ def test_deploying_more_than_available_is_rejected():
         own_capital_deployed=5_000.0,
     )
     report = validate_inputs(replace(inputs, financing=financing))
-    assert any("more own capital than is available" in m for m in messages(report, Severity.ERROR))
+    assert any(
+        "more own capital than is available" in m
+        for m in messages(report, Severity.ERROR)
+    )
 
 
 def test_negative_gmp_only_warns_because_a_discount_is_legitimate():
