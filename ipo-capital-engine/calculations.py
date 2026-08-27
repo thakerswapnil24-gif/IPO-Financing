@@ -71,6 +71,13 @@ __all__ = [
 DAY_COUNT_DEFAULT: int = 365
 _SOLVER_TOL = 1e-9
 
+try:  # SciPy gives a faster, more robust root find; bisection is the fallback.
+    # Imported once at module load so that no user request ever pays the
+    # several-hundred-millisecond cost of importing SciPy on its first solve.
+    from scipy.optimize import brentq as _brentq
+except ImportError:  # pragma: no cover - exercised only without SciPy installed
+    _brentq = None
+
 
 # ---------------------------------------------------------------------------
 # Enumerations
@@ -704,12 +711,11 @@ def _solve_monotonic(
         return hi
     if f_lo * f_hi > 0:
         return None  # no sign change: root not bracketed
-    try:  # pragma: no cover - exercised only when SciPy is installed
-        from scipy.optimize import brentq
-
-        return float(brentq(func, lo, hi, xtol=tol, maxiter=max_iter))
-    except Exception:
-        pass
+    if _brentq is not None:
+        try:
+            return float(_brentq(func, lo, hi, xtol=tol, maxiter=max_iter))
+        except Exception:  # pragma: no cover - fall through to bisection
+            pass
     for _ in range(max_iter):
         mid = 0.5 * (lo + hi)
         f_mid = func(mid)

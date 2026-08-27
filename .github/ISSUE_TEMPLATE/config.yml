@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How to test this beta
+    url: https://github.com/thakerswapnil24-gif/IPO-Financing/blob/main/ipo-capital-engine/BETA_TESTING.md
+    about: What is worth testing, what is already known, and what counts as a bug.
+  - name: How the numbers are calculated
+    url: https://github.com/thakerswapnil24-gif/IPO-Financing/blob/main/ipo-capital-engine/README.md#the-financial-model
+    about: Every formula, with its inputs, interpretation and limitations.

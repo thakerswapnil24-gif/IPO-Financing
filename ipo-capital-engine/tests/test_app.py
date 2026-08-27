@@ -109,3 +109,28 @@ def test_adding_an_opportunity_to_the_portfolio_builds_the_comparison_table():
     assert len(app.session_state["portfolio"]) == 1
     headers = [column for frame in app.dataframe for column in frame.value.columns]
     assert "Decision" in headers
+
+
+def test_the_app_exposes_a_crash_guarded_entry_point(monkeypatch):
+    """An unhandled error must render a report path, not propagate."""
+    import app as dashboard
+
+    def explode() -> None:
+        raise RuntimeError("simulated failure")
+
+    monkeypatch.setattr(dashboard, "main", explode)
+    dashboard.run()  # must not raise
+
+
+def test_the_beta_banner_and_version_badge_are_shown(app):
+    from version import RELEASE_NAME, __version__
+
+    warnings = " ".join(element.value for element in app.warning)
+    assert "beta" in warnings.lower(), "testers must be told this is a beta build"
+    assert "issues/new" in warnings, "the beta notice needs a feedback link"
+
+    markdown = " ".join(element.value for element in app.markdown)
+    assert RELEASE_NAME in markdown, "the running version must be visible in the UI"
+
+    captions = " ".join(element.value for element in app.caption)
+    assert __version__ in captions

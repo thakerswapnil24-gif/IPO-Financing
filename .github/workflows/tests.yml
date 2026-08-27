@@ -32,15 +32,113 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: ipo-capital-engine/requirements.txt
+          cache-dependency-path: ipo-capital-engine/requirements*.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Run the test suite
         run: pytest -q
 
       - name: Check the worked example still runs end to end
         run: python example_analysis.py --index 0 --simulations 2000
+
+  smoke:
+    name: Live boot from the deploy manifest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ipo-capital-engine
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ipo-capital-engine/requirements*.txt
+
+      # Runtime dependencies only, exactly as a deployment installs them. This
+      # is what catches an import that only the test extras were providing.
+      - name: Install runtime dependencies only
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start the app
+        run: |
+          streamlit run app.py --server.port 8501 --server.headless true > server.log 2>&1 &
+          echo $! > server.pid
+
+      - name: Wait for the health endpoint
+        run: |
+          for attempt in $(seq 1 60); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/_stcore/health)" = "200" ]; then
+              echo "Healthy after ${attempt}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::The app did not become healthy within 60 seconds"
+          cat server.log
+          exit 1
+
+      - name: Check the app serves its page
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/)
+          echo "Root page returned HTTP $code"
+          [ "$code" = "200" ]
+
+      - name: Fail if the server logged a traceback
+        run: |
+          if grep -q "Traceback (most recent call last)" server.log; then
+            echo "::error::The server logged a traceback while starting"
+            cat server.log
+            exit 1
+          fi
+          cat server.log
+
+      - name: Stop the app
+        if: always()
+        run: kill "$(cat server.pid)" || true
+
+  docker:
+    name: Container builds and serves
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t ipo-capital-engine:ci ipo-capital-engine
+
+      - name: Run the container
+        run: docker run -d --name ipo-engine -p 8501:8501 ipo-capital-engine:ci
+
+      - name: Wait for the container to serve
+        run: |
+          for attempt in $(seq 1 60); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8501/_stcore/health)" = "200" ]; then
+              echo "Healthy after ${attempt}s"
+              curl -s -o /dev/null -w 'Root page returned HTTP %{http_code}\n' http://localhost:8501/
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::The container did not become healthy within 60 seconds"
+          docker logs ipo-engine
+          exit 1
+
+      - name: Confirm the container does not run as root
+        run: |
+          user=$(docker exec ipo-engine id -un)
+          echo "Container user: $user"
+          [ "$user" != "root" ]
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f ipo-engine || true

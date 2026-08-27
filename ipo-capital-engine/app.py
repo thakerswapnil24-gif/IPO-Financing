@@ -12,6 +12,7 @@ Run with::
 from __future__ import annotations
 
 import math
+import traceback
 from dataclasses import replace
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -63,9 +64,12 @@ from scenarios import (
     sensitivity_od_rate_vs_listing_gain,
 )
 from validation import ValidationReport, validate_inputs
+from version import BETA_NOTICE, IS_PRERELEASE, RELEASE_NAME
+
+ISSUE_URL = "https://github.com/thakerswapnil24-gif/IPO-Financing/issues/new/choose"
 
 st.set_page_config(
-    page_title="IPO Capital Allocation & Financing Engine",
+    page_title=f"IPO Capital Allocation & Financing Engine {RELEASE_NAME}",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -985,6 +989,13 @@ def render_kpis(result: AnalysisResult, risk: RiskMetrics, decision: DecisionOut
         pct(capital.return_on_economic_capital),
         f"annualised {pct(capital.annualized_return_on_economic_capital)}",
         delta_color="off",
+        help=(
+            f"The headline figure is the return over one {capital.capital_weighted_days:.1f}-day "
+            "capital cycle. The annualised number compounds that cycle across a full "
+            "year, which assumes you can find and fund an identical opportunity "
+            "immediately and repeatedly. IPO supply is lumpy, so treat it as an "
+            "upper bound rather than an expected yearly return."
+        ),
     )
     row2[2].metric(
         "Break-even GMP",
@@ -1586,11 +1597,22 @@ def main() -> None:
     init_state()
     inputs, thresholds, monte_carlo_config, scenario_definitions = sidebar()
 
-    st.title("IPO Capital Allocation & Financing Decision Engine")
+    heading, badge = st.columns([5, 1])
+    with heading:
+        st.title("IPO Capital Allocation & Financing Decision Engine")
+    with badge:
+        st.markdown(
+            f"<div style='text-align:right;padding-top:18px'>"
+            f"<span style='background:{ACCENT};color:#fff;padding:4px 10px;border-radius:12px;"
+            f"font-size:0.8rem;font-weight:600;letter-spacing:0.04em'>{RELEASE_NAME}</span></div>",
+            unsafe_allow_html=True,
+        )
     st.caption(
         "Does the risk-adjusted return on your own equity justify the cost and risk "
         "of the money you borrowed to apply? " + DISCLAIMER
     )
+    if IS_PRERELEASE:
+        st.warning(f"{BETA_NOTICE}  \n[Report a problem or send feedback]({ISSUE_URL})")
 
     report = validate_inputs(inputs)
     render_validation(report)
@@ -1699,7 +1721,29 @@ def main() -> None:
         "allotment odds are not future odds, and a positive expected value is not a "
         "guaranteed profit. " + DISCLAIMER
     )
+    st.caption(f"{RELEASE_NAME} - [report a problem or send feedback]({ISSUE_URL})")
+
+
+def run() -> None:
+    """Entry point with a crash guard.
+
+    An unhandled exception would otherwise leave a half-rendered page and a raw
+    traceback. During a beta the traceback is genuinely useful, so it is offered
+    for copying into a bug report rather than hidden.
+    """
+    try:
+        main()
+    except Exception as error:  # noqa: BLE001 - the guard must catch everything
+        st.error(
+            f"**Something went wrong while building this analysis.**\n\n"
+            f"`{type(error).__name__}: {error}`\n\n"
+            f"This is a bug. Please [open an issue]({ISSUE_URL}) with the details "
+            "below and the inputs you used."
+        )
+        with st.expander("Technical details to paste into the report", expanded=False):
+            st.code("".join(traceback.format_exc()), language="text")
+        st.caption(RELEASE_NAME)
 
 
 if __name__ == "__main__":
-    main()
+    run()

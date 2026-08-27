@@ -1,0 +1,15 @@
+# Keep the build context small and free of anything that should not ship.
+.git
+.github
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+tests
+out
+*.xlsx
+*.pdf
+*.csv
+Dockerfile
+.dockerignore

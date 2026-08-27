@@ -1,10 +1,14 @@
-# Core application
-streamlit>=1.32
-pandas>=2.0
-numpy>=1.24
-plotly>=5.18
-scipy>=1.10
-openpyxl>=3.1
+# Runtime dependencies. This is the manifest a deployment installs, so it
+# deliberately excludes test tooling.
+#
+# Upper bounds are on the major version only: a beta that testers are using
+# should not break because an upstream library shipped a breaking release
+# mid-test, while patch and minor upgrades still flow through and are exercised
+# by CI on every push.
 
-# Tests
-pytest>=7.4
+streamlit>=1.32,<2
+pandas>=2.0,<4
+numpy>=1.24,<3
+plotly>=5.18,<8
+scipy>=1.10,<2
+openpyxl>=3.1,<4
