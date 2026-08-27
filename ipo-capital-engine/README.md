@@ -1,6 +1,13 @@
 # IPO Capital Allocation & Financing Decision Engine
 
 [![Tests](https://github.com/thakerswapnil24-gif/IPO-Financing/actions/workflows/tests.yml/badge.svg)](https://github.com/thakerswapnil24-gif/IPO-Financing/actions/workflows/tests.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0b1-blue)](CHANGELOG.md)
+[![Status](https://img.shields.io/badge/status-beta-orange)](BETA_TESTING.md)
+
+> **This is a beta.** The arithmetic is covered by 171 automated tests, but the
+> default cost, tax and decision-threshold values have not been validated against
+> a live issue. Read [BETA_TESTING.md](BETA_TESTING.md) before relying on a
+> verdict, and please report anything that looks wrong.
 
 A quantitative tool for one question:
 
@@ -22,6 +29,7 @@ The engine is deliberately sceptical. It is fully capable of concluding
 
 - [Installation](#installation)
 - [Running it](#running-it)
+- [Deploying it](#deploying-it)
 - [Project structure](#project-structure)
 - [The financial model](#the-financial-model)
   - [Three kinds of capital](#three-kinds-of-capital)
@@ -55,8 +63,11 @@ cd ipo-capital-engine
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-pip install -r requirements.txt
+pip install -r requirements-dev.txt    # runtime + test tooling
 ```
+
+`requirements.txt` holds the runtime dependencies only, so a deployment does not
+install test tooling.
 
 ## Running it
 
@@ -82,14 +93,36 @@ Run the tests:
 pytest -q
 ```
 
+## Deploying it
+
+The app is stateless — no database, no secrets, no outbound calls — so
+deployment is simple. [DEPLOYMENT.md](DEPLOYMENT.md) covers three targets:
+
+| Target | Use it for |
+| --- | --- |
+| Streamlit Community Cloud | Getting beta testers to a URL; redeploys on push to `main` |
+| Docker | Self-hosting; the image runs unprivileged with a health check |
+| Local | Development |
+
+CI verifies the deployable artefacts on every push: it boots the real server
+from `requirements.txt` alone and checks Streamlit's health endpoint and root
+page, then builds the container image and boots that too.
+
 ## Project structure
 
 ```
-.github/workflows/
-└── tests.yml               CI: pytest on Python 3.11 and 3.12 (repository root)
+.github/
+├── workflows/tests.yml     CI: pytest on 3.11/3.12, live boot, container build
+└── ISSUE_TEMPLATE/         Bug-report and model-feedback templates
 
 ipo-capital-engine/
 ├── app.py                  Streamlit dashboard (presentation only)
+├── version.py              Single source of truth for the release identity
+├── Dockerfile              Self-hosting image (unprivileged, health-checked)
+├── .streamlit/config.toml  Theme and deployment settings
+├── DEPLOYMENT.md           How to put it live, and how to cut the next build
+├── BETA_TESTING.md         What to test, known limitations, what counts as a bug
+├── CHANGELOG.md            Release history
 ├── calculations.py         Core engine: capital, financing, expected value, break-even
 ├── scenarios.py            Scenarios, sensitivity grids, Monte Carlo simulation
 ├── risk.py                 Risk metrics, outcome distribution, GO/NO-GO, portfolio table
@@ -108,6 +141,7 @@ ipo-capital-engine/
     ├── test_risk.py            risk metrics and the decision framework
     ├── test_validation.py      validation rules and the assumption ledger
     ├── test_export.py          reports, exports, example dataset
+    ├── test_packaging.py       version, deploy manifest, config, container
     └── test_app.py             Streamlit dashboard smoke tests
 ```
 
@@ -430,12 +464,16 @@ print(risk.probability_of_loss, decision.verdict.value)
 ## Testing
 
 ```bash
-pytest -q          # 147 tests
+pytest -q          # 171 tests
 ```
 
 CI runs the same suite on Python 3.11 and 3.12 for every push to `main` and every
 pull request, and then runs `example_analysis.py` end to end so a break in the
 command-line path fails the build too.
+
+24 of those tests cover the release packaging itself — the deploy manifest, the
+Streamlit config, the container definition and the version stamping — so a change
+that would break a deployment fails the build.
 
 The suite pins the arithmetic rather than the code's current output: expected values
 are derived by hand from the formulas above. Coverage includes basic IPO profit,

@@ -633,15 +633,17 @@ def evaluate_decision(
     hard_failures = [c for c in checks if c.hard and not c.passed]
     soft_failures = [c for c in checks if not c.hard and not c.passed]
 
+    # The headline sits next to the verdict badge in the UI, so it must not
+    # repeat the verdict word.
     if hard_failures:
         verdict = Verdict.NO_GO
-        headline = "NO-GO on your assumptions"
+        headline = f"{len(hard_failures)} hard rule(s) failed on your assumptions"
     elif soft_failures:
         verdict = Verdict.BORDERLINE
-        headline = "BORDERLINE - positive expected value, but fragile"
+        headline = "Positive expected value, but fragile"
     else:
         verdict = Verdict.GO
-        headline = "GO on your assumptions"
+        headline = "Every hard and soft rule passes on your assumptions"
 
     rationale: List[str] = []
     if hard_failures:

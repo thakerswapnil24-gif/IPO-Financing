@@ -1,0 +1,23 @@
+# Deployment configuration. Kept deliberately small: only settings that make the
+# app render identically for every tester and keep the deployment private by
+# default. Security-relevant defaults (XSRF protection, CORS) are left alone.
+
+[theme]
+# Pinned to light so the Plotly colour choices in app.py, which assume a light
+# canvas, look the same for everyone reporting a bug.
+base = "light"
+primaryColor = "#1f4e79"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f2f5f9"
+textColor = "#17202a"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
+
+[client]
+# Beta testers are asked to paste tracebacks into bug reports, so keep them.
+showErrorDetails = true
+toolbarMode = "minimal"

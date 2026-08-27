@@ -19,6 +19,7 @@ import pandas as pd
 from calculations import AnalysisResult, AssumptionRecord, assumption_ledger
 from explanations import explanations_frame
 from risk import DecisionOutcome, RiskMetrics
+from version import RELEASE_NAME
 from scenarios import MonteCarloResult, ScenarioResult, scenarios_to_frame
 
 __all__ = [
@@ -156,7 +157,10 @@ def build_report(
 
     return ReportBundle(
         title=f"IPO financing analysis - {inputs.ipo.name}",
-        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        generated_at=(
+            f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} "
+            f"by IPO Capital Engine {RELEASE_NAME}"
+        ),
         tables=tables,
     )
 

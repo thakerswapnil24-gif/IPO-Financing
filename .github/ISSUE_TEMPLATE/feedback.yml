@@ -1,0 +1,36 @@
+name: Feedback on the model or the framing
+description: The financial modelling, the decision thresholds, or how something reads
+labels: ["feedback", "beta"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most valuable kind of report during the beta. The arithmetic
+        is tested; the judgement layer is not.
+  - type: dropdown
+    id: area
+    attributes:
+      label: What is this about?
+      options:
+        - A default cost or tax rate looks wrong or stale
+        - The GO / BORDERLINE / NO-GO thresholds
+        - The financing model (blocked days, carry, opportunity cost)
+        - The allotment model (probabilities, lots, multiple PANs)
+        - Wording that reads as advice rather than arithmetic
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: detail
+    attributes:
+      label: What should change, and why
+      description: |
+        Concrete numbers help. If a default rate is stale, the current correct
+        value and where it comes from is ideal.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: A case that shows it
+      description: Inputs where the current behaviour is clearly wrong or misleading.

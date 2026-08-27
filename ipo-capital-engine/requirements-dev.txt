@@ -1,0 +1,6 @@
+# Development and CI dependencies: everything the app needs at runtime, plus the
+# test tooling. Install this locally; deployments install requirements.txt only.
+
+-r requirements.txt
+
+pytest>=7.4,<10

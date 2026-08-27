@@ -1,0 +1,46 @@
+name: Bug report
+description: A number looks wrong, something crashed, or the app misbehaved
+labels: ["bug", "beta"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing. For anything numerical, the CSV export from the
+        **Method & export** tab is the fastest route to a fix: it carries the
+        inputs, the assumption ledger, the calculations and the verdict, so the
+        case can be reproduced exactly.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The badge beside the dashboard title, or the footer.
+      placeholder: v0.1.0b1 beta
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: |
+        For a numerical disagreement, please show your own arithmetic. That is
+        usually enough to settle whether the model or the expectation is wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Inputs used
+      description: Attach the CSV export, or list the inputs that matter.
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Technical details
+      description: If the app showed a technical-details box, paste it here.
+      render: text
