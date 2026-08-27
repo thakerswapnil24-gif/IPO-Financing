@@ -5,6 +5,28 @@ All notable changes to this project are recorded here. Versions follow
 
 ## Unreleased
 
+### Fixed
+
+- **Narrow-screen layout.** Three elements were landing on top of page text at
+  phone width. Plotly's floating mode bar covered the in-figure chart title (a
+  measured 194x19px overlap on a 412px viewport), so titles now sit in the page
+  where they wrap like any other text and the bar cannot reach them. Streamlit's
+  element toolbar floats 42px above its own element and was covering the heading
+  before it, so it is pulled inside its element. The sidebar was forced open and
+  covered the entire viewport on a phone; it is now allowed to collapse itself,
+  while still opening by default on a wide screen.
+- Waterfall axis labels were long enough to become unreadable diagonal text on a
+  narrow axis; they are now short, with the full wording on hover, and the plot
+  reserves room for the x-axis band.
+- **The dashboard arrived as a squeezed desktop layout on a phone.** Streamlit
+  stacks its columns below roughly 768px, but a phone whose browser is in
+  desktop-site mode reports a layout viewport near 980px and so never reached
+  that breakpoint - four KPI cards and a side-by-side table and chart were being
+  crushed into a phone screen. A responsive stylesheet now stacks content to a
+  single column below 992px while keeping the KPI cards two-up, reclaims the
+  wide-screen page gutters, and scales the metric type down below 480px. The
+  1500px desktop layout is unchanged.
+
 ### Changed
 
 - **Formatted the whole codebase with Ruff** and pinned the configuration in
