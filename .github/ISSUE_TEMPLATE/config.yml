@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Open the live beta
+    url: https://ipo-capital-engine.streamlit.app
+    about: The running v0.1.0b1 build. Nothing to install.
   - name: How to test this beta
     url: https://github.com/thakerswapnil24-gif/IPO-Financing/blob/main/ipo-capital-engine/BETA_TESTING.md
     about: What is worth testing, what is already known, and what counts as a bug.

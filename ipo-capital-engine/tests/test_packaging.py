@@ -199,3 +199,26 @@ def test_the_deployment_guide_covers_every_supported_target():
     for target in ("streamlit community cloud", "docker", "local"):
         assert target in guide
     assert "app.py" in guide, "the deployment guide must name the entry point"
+
+
+# ---------------------------------------------------------------------------
+# The hosted beta
+# ---------------------------------------------------------------------------
+#: Where the beta is deployed. Update this alongside the docs if it moves.
+LIVE_URL = "https://ipo-capital-engine.streamlit.app"
+
+
+def test_the_live_url_is_documented_everywhere_a_tester_would_look():
+    for name in ("README.md", "BETA_TESTING.md", "DEPLOYMENT.md"):
+        assert LIVE_URL in (PROJECT / name).read_text(encoding="utf-8"), (
+            f"{name} does not tell anyone where the beta actually runs"
+        )
+    config = (REPO / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(encoding="utf-8")
+    assert LIVE_URL in config
+
+
+def test_testers_are_warned_about_the_free_tier_sleep():
+    guide = (PROJECT / "BETA_TESTING.md").read_text(encoding="utf-8").lower()
+    assert "sleep" in guide, (
+        "a cold start on Community Cloud will otherwise be reported as a bug"
+    )

@@ -1,5 +1,9 @@
 # Deploying the beta
 
+**The beta is live at <https://ipo-capital-engine.streamlit.app>**, deployed from `main` on
+Streamlit Community Cloud. Pushing to `main` redeploys it automatically, so
+treat a merge as a release to testers.
+
 Three ways to run the app, in order of how quickly they get testers to a URL.
 
 The app is stateless: nothing is written to disk, there is no database, no
