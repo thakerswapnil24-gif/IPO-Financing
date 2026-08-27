@@ -2,6 +2,11 @@
 
 Thank you for testing this. The build you are using is **v0.1.0b1 (beta)**.
 
+**Open it here: <https://ipo-capital-engine.streamlit.app>**
+
+Nothing to install. The version badge beside the title should read `v0.1.0b1
+beta` — if it says something else, you are on a newer build than this guide.
+
 The engine's arithmetic is covered by 147 automated tests, and every expected
 value in those tests was derived by hand from the documented formulas. What has
 **not** been validated is the judgement layer: the default cost and tax rates,
@@ -17,6 +22,18 @@ It answers whether the risk-adjusted return on **your own equity** justifies the
 cost and risk of the money you borrowed to apply for an IPO. It is not an IPO
 return calculator, and it is not investment advice. It scores assumptions that
 you supply, and it cannot tell you whether those assumptions are realistic.
+
+## A quirk of the free hosting, not a bug
+
+The beta runs on Streamlit Community Cloud, which puts an app to sleep after a
+stretch with no visitors. If you are the first person back, the page can take
+about half a minute to wake up, and may show a "getting the app back up" notice
+first. That is the host, not the app. Please do not report it.
+
+The same tier caps memory at roughly 1 GB. The heaviest thing here is the Monte
+Carlo tab; the default 10,000 paths are comfortable, but if you push it to
+100,000 and the app restarts itself, that is the ceiling rather than a crash
+worth reporting.
 
 ## Before you start
 

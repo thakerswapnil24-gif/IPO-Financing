@@ -3,6 +3,9 @@
 [![Tests](https://github.com/thakerswapnil24-gif/IPO-Financing/actions/workflows/tests.yml/badge.svg)](https://github.com/thakerswapnil24-gif/IPO-Financing/actions/workflows/tests.yml)
 [![Version](https://img.shields.io/badge/version-0.1.0b1-blue)](CHANGELOG.md)
 [![Status](https://img.shields.io/badge/status-beta-orange)](BETA_TESTING.md)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://ipo-capital-engine.streamlit.app)
+
+**Live beta: <https://ipo-capital-engine.streamlit.app>**
 
 > **This is a beta.** The arithmetic is covered by 171 automated tests, but the
 > default cost, tax and decision-threshold values have not been validated against
@@ -98,9 +101,12 @@ pytest -q
 The app is stateless — no database, no secrets, no outbound calls — so
 deployment is simple. [DEPLOYMENT.md](DEPLOYMENT.md) covers three targets:
 
+The beta currently runs at **<https://ipo-capital-engine.streamlit.app>**, redeployed automatically on
+every push to `main`.
+
 | Target | Use it for |
 | --- | --- |
-| Streamlit Community Cloud | Getting beta testers to a URL; redeploys on push to `main` |
+| Streamlit Community Cloud | Where the beta is hosted now; redeploys on push to `main` |
 | Docker | Self-hosting; the image runs unprivileged with a health check |
 | Local | Development |
 
