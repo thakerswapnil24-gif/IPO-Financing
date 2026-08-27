@@ -72,8 +72,23 @@ st.set_page_config(
     page_title=f"IPO Capital Allocation & Financing Engine {RELEASE_NAME}",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
+
+#: Plotly's floating mode bar overlaps an in-figure title on a narrow screen, so
+#: titles live in the page (see render_chart) and the bar is trimmed to the
+#: controls that are actually useful here.
+PLOTLY_CONFIG = {
+    "displaylogo": False,
+    "responsive": True,
+    "modeBarButtonsToRemove": [
+        "select2d",
+        "lasso2d",
+        "zoomIn2d",
+        "zoomOut2d",
+        "autoScale2d",
+    ],
+}
 
 POSITIVE = "#1a7f5a"
 NEGATIVE = "#b3261e"
@@ -842,7 +857,15 @@ def cached_monte_carlo(inputs: AnalysisInputs, config: MonteCarloConfig):
 # ---------------------------------------------------------------------------
 def profit_waterfall(result: AnalysisResult) -> go.Figure:
     """Gross profit down to net profit, one bar per drag on the return."""
-    labels = ["Expected gross profit", "Transaction costs", "Taxes", "Financing cost"]
+    # Short axis labels: the full wording is on hover, because a phone-width
+    # axis turns long category names into unreadable diagonal text.
+    labels = ["Gross profit", "Costs", "Taxes", "Financing"]
+    full_labels = [
+        "Expected gross profit",
+        "Transaction costs",
+        "Taxes",
+        "Financing cost",
+    ]
     values = [
         result.expected_gross_profit,
         -result.expected_transaction_costs,
@@ -851,14 +874,17 @@ def profit_waterfall(result: AnalysisResult) -> go.Figure:
     ]
     measures = ["absolute", "relative", "relative", "relative"]
     if result.financing.fd_interest_credit:
-        labels.append("FD interest counted")
+        labels.append("FD interest")
+        full_labels.append("FD interest counted")
         values.append(result.financing.fd_interest_credit)
         measures.append("relative")
     if result.inputs.financing.include_opportunity_cost:
-        labels.append("Opportunity cost")
+        labels.append("Opportunity")
+        full_labels.append("Opportunity cost")
         values.append(-result.expected_opportunity_cost)
         measures.append("relative")
-    labels.append("Expected net profit")
+    labels.append("Net profit")
+    full_labels.append("Expected net profit")
     values.append(0.0)
     measures.append("total")
 
@@ -873,6 +899,9 @@ def profit_waterfall(result: AnalysisResult) -> go.Figure:
                 for v, m in zip(values, measures, strict=True)
             ],
             textposition="outside",
+            cliponaxis=False,
+            customdata=full_labels,
+            hovertemplate="%{customdata}: %{y:,.0f}<extra></extra>",
             connector={"line": {"color": NEUTRAL}},
             increasing={"marker": {"color": POSITIVE}},
             decreasing={"marker": {"color": NEGATIVE}},
@@ -880,9 +909,8 @@ def profit_waterfall(result: AnalysisResult) -> go.Figure:
         )
     )
     figure.update_layout(
-        title="From expected gross profit to expected net profit",
         yaxis_title="Rupees",
-        margin={"t": 50, "b": 40, "l": 10, "r": 10},
+        margin={"t": 30, "b": 80, "l": 10, "r": 10},
         height=420,
     )
     return figure
@@ -943,18 +971,16 @@ def break_even_curve(inputs: AnalysisInputs, result: AnalysisResult) -> go.Figur
         )
     )
     figure.update_layout(
-        title="Expected net profit against the realised exit price",
         xaxis_title="Exit price (Rs)",
         yaxis_title="Expected net profit (Rs)",
         height=420,
-        margin={"t": 50, "b": 40, "l": 10, "r": 10},
+        margin={"t": 30, "b": 60, "l": 10, "r": 10},
     )
     return figure
 
 
 def heatmap(
     frame: pd.DataFrame,
-    title: str,
     x_title: str,
     y_title: str,
     x_format: str = "{:.0%}",
@@ -982,11 +1008,10 @@ def heatmap(
         )
     )
     figure.update_layout(
-        title=title,
         xaxis_title=x_title,
         yaxis_title=y_title,
         height=460,
-        margin={"t": 60, "b": 40, "l": 10, "r": 10},
+        margin={"t": 30, "b": 60, "l": 10, "r": 10},
     )
     return figure
 
@@ -1016,11 +1041,10 @@ def monte_carlo_chart(simulation) -> go.Figure:
             annotation_position="top",
         )
     figure.update_layout(
-        title=f"Distribution of net profit across {len(profits):,} simulations",
         xaxis_title="Net profit (Rs)",
         yaxis_title="Number of simulated paths",
         height=440,
-        margin={"t": 60, "b": 40, "l": 10, "r": 10},
+        margin={"t": 30, "b": 60, "l": 10, "r": 10},
         showlegend=False,
     )
     return figure
@@ -1040,12 +1064,11 @@ def outcome_distribution_chart(risk: RiskMetrics) -> go.Figure:
         )
     )
     figure.update_layout(
-        title="Every possible outcome of the allotment lottery",
         xaxis_title="Net profit",
         yaxis_title="Probability",
         yaxis_tickformat=".0%",
         height=400,
-        margin={"t": 60, "b": 40, "l": 10, "r": 10},
+        margin={"t": 30, "b": 60, "l": 10, "r": 10},
     )
     return figure
 
@@ -1091,12 +1114,34 @@ def scenario_chart(scenarios: Sequence[ScenarioResult]) -> go.Figure:
     )
     figure.update_layout(
         barmode="relative",
-        title="Scenario outcomes",
         yaxis_title="Rupees",
         height=420,
-        margin={"t": 60, "b": 40, "l": 10, "r": 10},
+        margin={"t": 30, "b": 60, "l": 10, "r": 10},
     )
     return figure
+
+
+#: Streamlit floats each element's hover toolbar roughly 42px *above* the
+#: element, which on a narrow screen lands it on top of the heading above.
+#: Pulling it inside its own element costs no layout space and cannot cover a
+#: column header. If a future Streamlit renames the test id, this rule simply
+#: stops matching and the styling reverts - nothing breaks.
+ELEMENT_TOOLBAR_CSS = """
+<style>
+[data-testid="stElementToolbar"] { top: 0.25rem !important; }
+</style>
+"""
+
+
+def render_chart(figure: go.Figure, title: str, key: str) -> None:
+    """Draw a chart with its title as ordinary page text.
+
+    Plotly paints its title inside the figure, where the floating mode bar sits
+    on top of it once the viewport is narrow. Keeping the title in the page lets
+    it wrap like any other text and puts it out of the mode bar's reach.
+    """
+    st.markdown(f"**{title}**")
+    st.plotly_chart(figure, width="stretch", key=key, config=PLOTLY_CONFIG)
 
 
 # ---------------------------------------------------------------------------
@@ -1249,8 +1294,10 @@ def render_expected_return(result: AnalysisResult) -> None:
     inputs = result.inputs
     left, right = st.columns([3, 2])
     with left:
-        st.plotly_chart(
-            profit_waterfall(result), width="stretch", key="waterfall_expected_return"
+        render_chart(
+            profit_waterfall(result),
+            "From expected gross profit to expected net profit",
+            "waterfall_expected_return",
         )
     with right:
         st.markdown("**Capital, three different denominators**")
@@ -1437,8 +1484,10 @@ def render_break_even(inputs: AnalysisInputs, result: AnalysisResult) -> None:
         f"you pay {inputs.financing.od_rate_pct:.2f}%",
         delta_color="off",
     )
-    st.plotly_chart(
-        break_even_curve(inputs, result), width="stretch", key="break_even_curve"
+    render_chart(
+        break_even_curve(inputs, result),
+        "Expected net profit against the realised exit price",
+        "break_even_curve",
     )
     minimum_probability = break_even.min_allotment_probability
     st.caption(
@@ -1475,7 +1524,7 @@ def render_scenarios(scenarios: Sequence[ScenarioResult]) -> None:
         }
     )
     st.dataframe(display, width="stretch", hide_index=True)
-    st.plotly_chart(scenario_chart(scenarios), width="stretch", key="scenario_chart")
+    render_chart(scenario_chart(scenarios), "Scenario outcomes", "scenario_chart")
     for scenario in scenarios:
         st.caption(f"**{scenario.name}** - {scenario.definition.description}")
 
@@ -1526,15 +1575,10 @@ def render_sensitivity(inputs: AnalysisInputs) -> None:
         float(v) for v in np.round(np.linspace(0.05, probability_high, 6), 3)
     )
     grid = cached_gmp_grid(inputs, gmps, probabilities)
-    st.plotly_chart(
-        heatmap(
-            grid,
-            "Expected net profit: GMP vs allotment probability",
-            "Allotment probability",
-            "GMP (Rs)",
-        ),
-        width="stretch",
-        key="heatmap_gmp_probability",
+    render_chart(
+        heatmap(grid, "Allotment probability", "GMP (Rs)"),
+        "Expected net profit: GMP vs allotment probability",
+        "heatmap_gmp_probability",
     )
 
     rate_high = max(inputs.financing.od_rate_pct * 1.8, 18.0)
@@ -1549,16 +1593,10 @@ def render_sensitivity(inputs: AnalysisInputs) -> None:
         )
     )
     rate_grid = cached_rate_grid(inputs, rates, gains)
-    st.plotly_chart(
-        heatmap(
-            rate_grid,
-            "Expected net profit: OD rate vs listing gain",
-            "Listing gain (%)",
-            "OD rate (% p.a.)",
-            x_format="{:.1f}%",
-        ),
-        width="stretch",
-        key="heatmap_rate_gain",
+    render_chart(
+        heatmap(rate_grid, "Listing gain (%)", "OD rate (% p.a.)", x_format="{:.1f}%"),
+        "Expected net profit: OD rate vs listing gain",
+        "heatmap_rate_gain",
     )
     st.caption(
         "Read the left-hand column of the second grid first: it is what happens "
@@ -1583,8 +1621,10 @@ def render_monte_carlo(inputs: AnalysisInputs, config: MonteCarloConfig) -> None
         "worst 1-in-20 outcome",
         delta_color="off",
     )
-    st.plotly_chart(
-        monte_carlo_chart(simulation), width="stretch", key="monte_carlo_chart"
+    render_chart(
+        monte_carlo_chart(simulation),
+        f"Distribution of net profit across {len(simulation.profits):,} simulations",
+        "monte_carlo_chart",
     )
 
     left, right = st.columns(2)
@@ -1637,10 +1677,10 @@ def render_risk(result: AnalysisResult, risk: RiskMetrics) -> None:
 
     left, right = st.columns([3, 2])
     with left:
-        st.plotly_chart(
+        render_chart(
             outcome_distribution_chart(risk),
-            width="stretch",
-            key="outcome_distribution",
+            "Every possible outcome of the allotment lottery",
+            "outcome_distribution",
         )
     with right:
         st.markdown("**Dependence on each assumption**")
@@ -1881,6 +1921,7 @@ def render_export(
 # Entry point
 # ---------------------------------------------------------------------------
 def main() -> None:
+    st.markdown(ELEMENT_TOOLBAR_CSS, unsafe_allow_html=True)
     init_state()
     inputs, thresholds, monte_carlo_config, scenario_definitions = sidebar()
 
@@ -1985,8 +2026,10 @@ def main() -> None:
             )
         with right:
             st.subheader("Where the money goes")
-            st.plotly_chart(
-                profit_waterfall(result), width="stretch", key="waterfall_overview"
+            render_chart(
+                profit_waterfall(result),
+                "From expected gross profit to expected net profit",
+                "waterfall_overview",
             )
         render_assumption_ledger(inputs)
 

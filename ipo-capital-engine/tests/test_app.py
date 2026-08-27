@@ -133,3 +133,76 @@ def test_the_beta_banner_and_version_badge_are_shown(app):
 
     captions = " ".join(element.value for element in app.caption)
     assert __version__ in captions
+
+
+# ---------------------------------------------------------------------------
+# Narrow-screen layout
+#
+# Three separate elements used to land on top of page text at phone width:
+# Plotly's in-figure title sat under its floating mode bar, Streamlit's element
+# toolbar floats above its own element and covered the heading before it, and
+# the sidebar was forced open over the whole viewport. These pin the fixes.
+# ---------------------------------------------------------------------------
+def test_no_chart_carries_an_in_figure_title():
+    """Titles live in the page, where the mode bar cannot cover them."""
+    import app as dashboard
+    from calculations import analyze
+    from risk import compute_risk_metrics
+    from scenarios import MonteCarloConfig, run_monte_carlo, run_scenarios
+    from tests.test_calculations import frictionless
+
+    inputs = frictionless(gmp=25.0, probability=0.2)
+    result = analyze(inputs)
+    figures = {
+        "waterfall": dashboard.profit_waterfall(result),
+        "break_even": dashboard.break_even_curve(inputs, result),
+        "scenarios": dashboard.scenario_chart(run_scenarios(inputs)),
+        "outcomes": dashboard.outcome_distribution_chart(compute_risk_metrics(result)),
+        "monte_carlo": dashboard.monte_carlo_chart(
+            run_monte_carlo(inputs, MonteCarloConfig(n_simulations=500))
+        ),
+    }
+    for name, figure in figures.items():
+        title = figure.layout.title.text
+        assert not title, f"{name} still sets an in-figure title: {title!r}"
+
+
+def test_every_chart_is_drawn_through_the_shared_renderer():
+    """One call site means the mode-bar config cannot be forgotten on a chart."""
+    source = (Path(APP)).read_text(encoding="utf-8")
+    assert source.count("st.plotly_chart(") == 1, (
+        "charts must go through render_chart so they share the mode-bar config"
+    )
+    assert "PLOTLY_CONFIG" in source
+
+
+def test_the_sidebar_is_allowed_to_collapse_on_a_narrow_screen():
+    source = (Path(APP)).read_text(encoding="utf-8")
+    assert 'initial_sidebar_state="auto"' in source, (
+        "an expanded sidebar covers the whole viewport on a phone"
+    )
+
+
+def test_the_element_toolbar_is_pulled_inside_its_element():
+    source = (Path(APP)).read_text(encoding="utf-8")
+    assert "stElementToolbar" in source, (
+        "without this override Streamlit's toolbar sits on the heading above it"
+    )
+
+
+def test_waterfall_axis_labels_stay_short_enough_for_a_narrow_axis():
+    import app as dashboard
+    from calculations import analyze
+    from tests.test_calculations import frictionless
+
+    figure = dashboard.profit_waterfall(analyze(frictionless()))
+    labels = list(figure.data[0].x)
+    assert labels, "the waterfall must label its bars"
+    longest = max(labels, key=len)
+    assert len(longest) <= 14, (
+        f"{longest!r} is too long for a phone-width axis; the full wording "
+        "belongs in the hover text"
+    )
+    # ... and the full wording must still be reachable.
+    assert figure.data[0].customdata is not None
+    assert "Expected gross profit" in list(figure.data[0].customdata)
