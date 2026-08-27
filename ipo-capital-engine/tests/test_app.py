@@ -206,3 +206,37 @@ def test_waterfall_axis_labels_stay_short_enough_for_a_narrow_axis():
     # ... and the full wording must still be reachable.
     assert figure.data[0].customdata is not None
     assert "Expected gross profit" in list(figure.data[0].customdata)
+
+
+def test_the_layout_stacks_well_past_streamlit_own_breakpoint():
+    """A phone in desktop-site mode reports a viewport near 980px.
+
+    Streamlit stacks its own columns below roughly 768px, so on such a device
+    the dashboard arrives as a squeezed desktop layout. The stylesheet has to
+    reach further out than Streamlit does.
+    """
+    source = (Path(APP)).read_text(encoding="utf-8")
+    assert "RESPONSIVE_CSS" in source
+    assert "max-width: 992px" in source, (
+        "the stacking breakpoint must cover a phone in desktop-site mode"
+    )
+    assert 'stHorizontalBlock"] { flex-wrap: wrap' in source.replace("\n", " ") or (
+        "flex-wrap: wrap" in source
+    )
+
+
+def test_kpi_cards_are_keyed_so_they_can_stay_two_up():
+    source = (Path(APP)).read_text(encoding="utf-8")
+    assert 'st.container(key="kpi_cards")' in source, (
+        "the KPI row needs its own key so it can lay out differently from the "
+        "content columns, which stack to one"
+    )
+    assert ".st-key-kpi_cards" in source
+
+
+def test_metric_values_are_scaled_down_on_the_narrowest_screens():
+    source = (Path(APP)).read_text(encoding="utf-8")
+    assert "max-width: 480px" in source
+    assert "stMetricValue" in source, (
+        "long money values wrap badly at the default metric size on a small phone"
+    )

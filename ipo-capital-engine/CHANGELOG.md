@@ -18,6 +18,14 @@ All notable changes to this project are recorded here. Versions follow
 - Waterfall axis labels were long enough to become unreadable diagonal text on a
   narrow axis; they are now short, with the full wording on hover, and the plot
   reserves room for the x-axis band.
+- **The dashboard arrived as a squeezed desktop layout on a phone.** Streamlit
+  stacks its columns below roughly 768px, but a phone whose browser is in
+  desktop-site mode reports a layout viewport near 980px and so never reached
+  that breakpoint - four KPI cards and a side-by-side table and chart were being
+  crushed into a phone screen. A responsive stylesheet now stacks content to a
+  single column below 992px while keeping the KPI cards two-up, reclaims the
+  wide-screen page gutters, and scales the metric type down below 480px. The
+  1500px desktop layout is unchanged.
 
 ### Changed
 

@@ -1121,14 +1121,48 @@ def scenario_chart(scenarios: Sequence[ScenarioResult]) -> go.Figure:
     return figure
 
 
-#: Streamlit floats each element's hover toolbar roughly 42px *above* the
-#: element, which on a narrow screen lands it on top of the heading above.
-#: Pulling it inside its own element costs no layout space and cannot cover a
-#: column header. If a future Streamlit renames the test id, this rule simply
-#: stops matching and the styling reverts - nothing breaks.
-ELEMENT_TOOLBAR_CSS = """
+#: Responsive rules. Streamlit stacks its columns below roughly 768px, but a
+#: phone whose browser is in desktop-site mode reports a layout viewport near
+#: 980px, so the dashboard arrives as a squeezed desktop layout instead. These
+#: rules stack it on any narrow-ish viewport, and they are keyed to Streamlit's
+#: test ids: if a future release renames one, the rule stops matching and the
+#: layout falls back to Streamlit's own behaviour rather than breaking.
+RESPONSIVE_CSS = """
 <style>
+/* Streamlit floats each element's hover toolbar about 42px *above* the element,
+   where it lands on the heading before it. Pull it inside its own element. */
 [data-testid="stElementToolbar"] { top: 0.25rem !important; }
+
+@media (max-width: 992px) {
+    /* One column per row: a two-up table and chart are both unreadable once
+       the viewport is this narrow. */
+    [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
+    [data-testid="stColumn"] {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+    }
+    /* KPI cards are the exception - short values stay scannable two-up, and it
+       halves the scrolling needed to see all eight. */
+    .st-key-kpi_cards [data-testid="stColumn"] {
+        flex: 1 1 47% !important;
+        min-width: 47% !important;
+    }
+    /* Reclaim the wide-screen page gutters. */
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 2.5rem !important;
+    }
+    /* The tab strip scrolls horizontally; make that obvious and thumb-friendly. */
+    [data-testid="stTabs"] [role="tablist"] { overflow-x: auto; scrollbar-width: thin; }
+    [data-testid="stTabs"] [role="tab"] { white-space: nowrap; }
+}
+
+@media (max-width: 480px) {
+    /* Long money values wrap badly at the default metric size. */
+    [data-testid="stMetricValue"] { font-size: 1.6rem !important; }
+    [data-testid="stMetricLabel"] { font-size: 0.8rem !important; }
+}
 </style>
 """
 
@@ -1168,7 +1202,10 @@ def render_kpis(
     capital = result.capital
     icon, colour = VERDICT_STYLE[decision.verdict]
 
-    row1 = st.columns(4)
+    # Keyed so the responsive stylesheet can lay these out two-up on a phone
+    # while every other column layout stacks to one.
+    kpi_cards = st.container(key="kpi_cards")
+    row1 = kpi_cards.columns(4)
     row1[0].metric(
         "Total application capital", compact_inr(capital.total_application_amount)
     )
@@ -1193,7 +1230,7 @@ def render_kpis(
         delta_color="off",
     )
 
-    row2 = st.columns(4)
+    row2 = kpi_cards.columns(4)
     net = result.expected_net_profit
     row2[0].metric(
         "Expected net profit",
@@ -1921,7 +1958,7 @@ def render_export(
 # Entry point
 # ---------------------------------------------------------------------------
 def main() -> None:
-    st.markdown(ELEMENT_TOOLBAR_CSS, unsafe_allow_html=True)
+    st.markdown(RESPONSIVE_CSS, unsafe_allow_html=True)
     init_state()
     inputs, thresholds, monte_carlo_config, scenario_definitions = sidebar()
 
