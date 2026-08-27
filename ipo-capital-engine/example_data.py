@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from calculations import (
     AnalysisInputs,
@@ -43,14 +43,14 @@ class ExamplePreset:
     inputs: AnalysisInputs
 
 
-def inputs_from_dict(payload: Dict[str, Any]) -> AnalysisInputs:
+def inputs_from_dict(payload: dict[str, Any]) -> AnalysisInputs:
     """Build :class:`AnalysisInputs` from a plain dictionary (JSON friendly)."""
     ipo_data = dict(payload.get("ipo", {}))
     if "gmp_mode" in ipo_data:
         ipo_data["gmp_mode"] = GMPMode(ipo_data["gmp_mode"])
     ipo = IPOAssumptions(**ipo_data)
 
-    accounts: List[ApplicationAccount] = []
+    accounts: list[ApplicationAccount] = []
     for account in payload.get("accounts", []):
         data = dict(account)
         if "category" in data:
@@ -72,14 +72,16 @@ def inputs_from_dict(payload: Dict[str, Any]) -> AnalysisInputs:
         financing=financing,
         costs=costs,
         taxes=taxes,
-        assume_independent_allotments=payload.get("assume_independent_allotments", True),
+        assume_independent_allotments=payload.get(
+            "assume_independent_allotments", True
+        ),
     )
 
 
-def inputs_to_dict(inputs: AnalysisInputs) -> Dict[str, Any]:
+def inputs_to_dict(inputs: AnalysisInputs) -> dict[str, Any]:
     """Inverse of :func:`inputs_from_dict` - JSON-serialisable."""
 
-    def clean(mapping: Dict[str, Any]) -> Dict[str, Any]:
+    def clean(mapping: dict[str, Any]) -> dict[str, Any]:
         return {
             key: (value.value if hasattr(value, "value") else value)
             for key, value in mapping.items()
@@ -95,7 +97,7 @@ def inputs_to_dict(inputs: AnalysisInputs) -> Dict[str, Any]:
     }
 
 
-def load_examples(path: Optional[Path] = None) -> List[ExamplePreset]:
+def load_examples(path: Path | None = None) -> list[ExamplePreset]:
     """Load the bundled example dataset."""
     source = Path(path) if path is not None else DATA_FILE
     payload = json.loads(source.read_text(encoding="utf-8"))

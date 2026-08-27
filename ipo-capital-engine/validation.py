@@ -13,9 +13,9 @@ Two severities are produced:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Sequence
 
 from calculations import (
     AnalysisInputs,
@@ -59,7 +59,7 @@ class ValidationIssue:
 
 @dataclass
 class ValidationReport:
-    issues: List[ValidationIssue] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
 
     def add(self, severity: Severity, field_name: str, message: str) -> None:
         self.issues.append(ValidationIssue(severity, field_name, message))
@@ -71,11 +71,11 @@ class ValidationReport:
         self.add(Severity.WARNING, field_name, message)
 
     @property
-    def errors(self) -> List[ValidationIssue]:
+    def errors(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.severity is Severity.ERROR]
 
     @property
-    def warnings(self) -> List[ValidationIssue]:
+    def warnings(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.severity is Severity.WARNING]
 
     @property
@@ -89,7 +89,9 @@ class ValidationReport:
 def _check_ipo(inputs: AnalysisInputs, report: ValidationReport) -> None:
     ipo = inputs.ipo
     if not ipo.name or not ipo.name.strip():
-        report.warn("IPO name", "No IPO name supplied - reports will be hard to identify.")
+        report.warn(
+            "IPO name", "No IPO name supplied - reports will be hard to identify."
+        )
     if ipo.issue_price <= 0:
         report.error("Issue price", "Issue price must be greater than zero.")
     if ipo.lot_size <= 0:
@@ -158,16 +160,20 @@ def _check_accounts(inputs: AnalysisInputs, report: ValidationReport) -> None:
                 f"Retail bids are capped at Rs {RETAIL_LIMIT:,.0f}; this bid is "
                 f"Rs {amount:,.0f}. Re-categorise it as sNII or reduce the lots.",
             )
-        if acct.category is IPOCategory.SNII and not (RETAIL_LIMIT < amount <= SNII_LIMIT):
+        if acct.category is IPOCategory.SNII and not (
+            RETAIL_LIMIT < amount <= SNII_LIMIT
+        ):
             report.warn(
                 prefix,
-                f"sNII bids sit between Rs {RETAIL_LIMIT:,.0f} and Rs {SNII_LIMIT:,.0f}; "
+                f"sNII bids sit between Rs {RETAIL_LIMIT:,.0f} and Rs "
+                f"{SNII_LIMIT:,.0f}; "
                 f"this bid is Rs {amount:,.0f}.",
             )
         if acct.category is IPOCategory.BNII and amount <= SNII_LIMIT:
             report.warn(
                 prefix,
-                f"bNII bids are above Rs {SNII_LIMIT:,.0f}; this bid is Rs {amount:,.0f}.",
+                f"bNII bids are above Rs {SNII_LIMIT:,.0f}; this bid is Rs "
+                f"{amount:,.0f}.",
             )
         if (
             acct.category is IPOCategory.RETAIL
@@ -211,7 +217,9 @@ def _check_financing(inputs: AnalysisInputs, report: ValidationReport) -> None:
             report.warn(label, f"{value}% p.a. is an extreme rate - please confirm.")
 
     if not 0 <= fin.od_ltv_pct <= 100:
-        report.error("OD LTV", "Loan-to-value against an FD must be between 0% and 100%.")
+        report.error(
+            "OD LTV", "Loan-to-value against an FD must be between 0% and 100%."
+        )
     elif fin.od_ltv_pct > 95:
         report.warn(
             "OD LTV",
@@ -254,7 +262,11 @@ def _check_financing(inputs: AnalysisInputs, report: ValidationReport) -> None:
             "OD drawn",
             "Overdraft drawn exceeds the sanctioned limit (FD amount x LTV).",
         )
-    if fin.funding_mode is FundingMode.OWN and fin.fd_amount > 0 and fin.od_rate_pct > 0:
+    if (
+        fin.funding_mode is FundingMode.OWN
+        and fin.fd_amount > 0
+        and fin.od_rate_pct > 0
+    ):
         report.warn(
             "Funding mode",
             "Funding mode is 'own capital only', so the OD inputs do not affect "

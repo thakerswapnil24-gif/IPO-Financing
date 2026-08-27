@@ -51,7 +51,9 @@ def test_bear_scenario_applies_the_documented_factors():
 
 def test_bull_scenario_caps_probability_at_one():
     base = frictionless(probability=0.9)
-    bull = ScenarioDefinition(name="Bull", allotment_probability_multiplier=2.0).apply(base)
+    bull = ScenarioDefinition(name="Bull", allotment_probability_multiplier=2.0).apply(
+        base
+    )
     assert bull.accounts[0].allotment_probability == 1.0
 
 
@@ -134,7 +136,10 @@ def test_sensitivity_cell_matches_a_direct_calculation():
 def test_monte_carlo_with_fixed_distributions_converges_on_the_expected_value():
     base = frictionless(probability=0.25)
     config = MonteCarloConfig(
-        n_simulations=200_000, seed=7, gain_distribution="fixed", probability_distribution="fixed"
+        n_simulations=200_000,
+        seed=7,
+        gain_distribution="fixed",
+        probability_distribution="fixed",
     )
     simulation = run_monte_carlo(base, config)
     analytic = analyze(base).expected_net_profit
@@ -157,7 +162,9 @@ def test_monte_carlo_reports_the_required_percentiles():
     assert simulation.percentiles[5] <= simulation.percentiles[25]
     assert simulation.percentiles[25] <= simulation.percentiles[75]
     assert simulation.percentiles[75] <= simulation.percentiles[95]
-    assert simulation.probability_of_profit + simulation.probability_of_loss <= 1.0 + 1e-9
+    assert (
+        simulation.probability_of_profit + simulation.probability_of_loss <= 1.0 + 1e-9
+    )
     assert len(simulation.profits) == 10_000
 
 
@@ -174,8 +181,12 @@ def test_monte_carlo_allotment_counts_track_the_hit_rate():
 
 def test_wider_listing_uncertainty_widens_the_profit_distribution():
     base = frictionless()
-    narrow = run_monte_carlo(base, MonteCarloConfig(n_simulations=20_000, seed=5, gain_std_pct=5.0))
-    wide = run_monte_carlo(base, MonteCarloConfig(n_simulations=20_000, seed=5, gain_std_pct=40.0))
+    narrow = run_monte_carlo(
+        base, MonteCarloConfig(n_simulations=20_000, seed=5, gain_std_pct=5.0)
+    )
+    wide = run_monte_carlo(
+        base, MonteCarloConfig(n_simulations=20_000, seed=5, gain_std_pct=40.0)
+    )
     assert wide.std_dev > narrow.std_dev
 
 

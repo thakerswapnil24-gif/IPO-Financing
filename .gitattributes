@@ -1,0 +1,12 @@
+# Normalise line endings so the repository never gains CRLF from a Windows
+# checkout, which would show up as a whole-file diff on GitHub.
+* text=auto eol=lf
+
+*.py    text diff=python
+*.md    text
+*.toml  text
+*.yml   text
+*.yaml  text
+*.json  text
+*.txt   text
+Dockerfile text

@@ -24,9 +24,10 @@ Design principles
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any
 
 __all__ = [
     "DAY_COUNT_DEFAULT",
@@ -153,8 +154,8 @@ class IPOAssumptions:
     gmp_value: float = 0.0
     gmp_mode: GMPMode = GMPMode.ABSOLUTE
     use_gmp_for_listing: bool = True
-    expected_listing_price_override: Optional[float] = None
-    expected_exit_price_override: Optional[float] = None
+    expected_listing_price_override: float | None = None
+    expected_exit_price_override: float | None = None
     holding_period_days: int = 1
 
     # -- derived ----------------------------------------------------------
@@ -291,15 +292,17 @@ class AnalysisInputs:
     """Complete, self-contained description of one IPO financing decision."""
 
     ipo: IPOAssumptions = field(default_factory=IPOAssumptions)
-    accounts: Tuple[ApplicationAccount, ...] = field(
+    accounts: tuple[ApplicationAccount, ...] = field(
         default_factory=lambda: (ApplicationAccount(),)
     )
     financing: FinancingAssumptions = field(default_factory=FinancingAssumptions)
-    costs: TransactionCostAssumptions = field(default_factory=TransactionCostAssumptions)
+    costs: TransactionCostAssumptions = field(
+        default_factory=TransactionCostAssumptions
+    )
     taxes: TaxAssumptions = field(default_factory=TaxAssumptions)
     assume_independent_allotments: bool = True
 
-    def with_accounts(self, accounts: Sequence[ApplicationAccount]) -> "AnalysisInputs":
+    def with_accounts(self, accounts: Sequence[ApplicationAccount]) -> AnalysisInputs:
         return replace(self, accounts=tuple(accounts))
 
     @property
@@ -342,7 +345,7 @@ class TransactionCostBreakdown:
         """Transfer expenses allowable against capital gains (STT excluded by law)."""
         return self.total - self.stt
 
-    def as_dict(self) -> Dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
         return {
             "Brokerage": self.brokerage,
             "STT": self.stt,
@@ -452,7 +455,7 @@ class AccountOutcome:
 class AllotmentDistribution:
     """Exact distribution of the number of allotted accounts (Poisson-binomial)."""
 
-    probabilities: Tuple[float, ...]
+    probabilities: tuple[float, ...]
     expected_allotments: float
     p_zero: float
     p_at_least_one: float
@@ -477,34 +480,34 @@ class CapitalEfficiency:
     cycle_days: int
 
     @property
-    def return_on_application_capital(self) -> Optional[float]:
+    def return_on_application_capital(self) -> float | None:
         return _safe_div_opt(self.expected_net_profit, self.total_application_amount)
 
     @property
-    def return_on_own_capital(self) -> Optional[float]:
+    def return_on_own_capital(self) -> float | None:
         return _safe_div_opt(self.expected_net_profit, self.own_capital_deployed)
 
     @property
-    def return_on_economic_capital(self) -> Optional[float]:
+    def return_on_economic_capital(self) -> float | None:
         return _safe_div_opt(self.expected_net_profit, self.economic_capital_at_risk)
 
     @property
-    def financing_cost_to_gross_profit(self) -> Optional[float]:
+    def financing_cost_to_gross_profit(self) -> float | None:
         return _safe_div_opt(self.financing_cost, self.expected_gross_profit)
 
     @property
-    def profit_to_financing_cost(self) -> Optional[float]:
+    def profit_to_financing_cost(self) -> float | None:
         return _safe_div_opt(self.expected_net_profit, self.financing_cost)
 
     @property
-    def annualized_return_on_economic_capital(self) -> Optional[float]:
+    def annualized_return_on_economic_capital(self) -> float | None:
         roi = self.return_on_economic_capital
         if roi is None:
             return None
         return annualize(roi, self.capital_weighted_days)
 
     @property
-    def annualized_return_on_application_capital(self) -> Optional[float]:
+    def annualized_return_on_application_capital(self) -> float | None:
         roi = self.return_on_application_capital
         if roi is None:
             return None
@@ -513,14 +516,14 @@ class CapitalEfficiency:
 
 @dataclass(frozen=True)
 class BreakEvenResults:
-    exit_price_if_allotted: Optional[float]
-    gmp_if_allotted: Optional[float]
-    listing_gain_pct_if_allotted: Optional[float]
-    exit_price_expected_value: Optional[float]
-    gmp_expected_value: Optional[float]
-    listing_gain_pct_expected_value: Optional[float]
-    min_allotment_probability: Optional[float]
-    max_od_rate_pct: Optional[float]
+    exit_price_if_allotted: float | None
+    gmp_if_allotted: float | None
+    listing_gain_pct_if_allotted: float | None
+    exit_price_expected_value: float | None
+    gmp_expected_value: float | None
+    listing_gain_pct_expected_value: float | None
+    min_allotment_probability: float | None
+    max_od_rate_pct: float | None
 
 
 @dataclass(frozen=True)
@@ -530,7 +533,7 @@ class AnalysisResult:
     inputs: AnalysisInputs
     funding: FundingPlan
     financing: FinancingBreakdown
-    accounts: Tuple[AccountOutcome, ...]
+    accounts: tuple[AccountOutcome, ...]
     allotment: AllotmentDistribution
     expected_gross_profit: float
     expected_transaction_costs: float
@@ -556,7 +559,7 @@ class AnalysisResult:
     def expected_allotments(self) -> float:
         return self.allotment.expected_allotments
 
-    def summary_dict(self) -> Dict[str, Any]:
+    def summary_dict(self) -> dict[str, Any]:
         cap = self.capital
         return {
             "IPO": self.inputs.ipo.name,
@@ -582,14 +585,22 @@ class AnalysisResult:
             "Return on application capital": cap.return_on_application_capital,
             "Return on own capital": cap.return_on_own_capital,
             "Return on economic capital": cap.return_on_economic_capital,
-            "Annualized return on economic capital": cap.annualized_return_on_economic_capital,
-            "Break-even exit price (if allotted)": self.break_even.exit_price_if_allotted,
+            "Annualized return on economic capital": (
+                cap.annualized_return_on_economic_capital
+            ),
+            "Break-even exit price (if allotted)": (
+                self.break_even.exit_price_if_allotted
+            ),
             "Break-even GMP (if allotted)": self.break_even.gmp_if_allotted,
-            "Break-even exit price (expected value)": self.break_even.exit_price_expected_value,
+            "Break-even exit price (expected value)": (
+                self.break_even.exit_price_expected_value
+            ),
             "Break-even GMP (expected value)": self.break_even.gmp_expected_value,
             "Minimum allotment probability": self.break_even.min_allotment_probability,
             "Max sustainable OD rate (%)": self.break_even.max_od_rate_pct,
-            "Financing cost / expected gross profit": cap.financing_cost_to_gross_profit,
+            "Financing cost / expected gross profit": (
+                cap.financing_cost_to_gross_profit
+            ),
             "Expected profit / financing cost": cap.profit_to_financing_cost,
         }
 
@@ -613,7 +624,7 @@ def _safe_div(numerator: float, denominator: float, default: float = 0.0) -> flo
     return numerator / denominator
 
 
-def _safe_div_opt(numerator: float, denominator: float) -> Optional[float]:
+def _safe_div_opt(numerator: float, denominator: float) -> float | None:
     """Divide, returning ``None`` when the denominator is (near) zero."""
     if denominator is None or abs(denominator) < 1e-12:
         return None
@@ -661,7 +672,7 @@ def simple_interest(
 
 def annualize(
     period_return: float, days: float, day_count_basis: int = DAY_COUNT_DEFAULT
-) -> Optional[float]:
+) -> float | None:
     """Compound a holding-period return to an annual equivalent.
 
     Returns ``None`` when the period is not positive. For a total loss
@@ -682,7 +693,7 @@ def annualize(
 
 def annualize_simple(
     period_return: float, days: float, day_count_basis: int = DAY_COUNT_DEFAULT
-) -> Optional[float]:
+) -> float | None:
     """Non-compounded annualisation: ``r * basis / days``."""
     if days is None or days <= 0:
         return None
@@ -696,7 +707,7 @@ def _solve_monotonic(
     hi: float,
     tol: float = 1e-7,
     max_iter: int = 200,
-) -> Optional[float]:
+) -> float | None:
     """Find a root of a continuous monotonic function on ``[lo, hi]``.
 
     Uses SciPy's Brent solver when available and falls back to bisection so the
@@ -751,7 +762,9 @@ def build_funding_plan(
         od = min(application_amount, od_limit)
         own = min(available, application_amount - od)
     else:  # MIXED - the user states how much of their own cash to commit
-        own = min(max(financing.own_capital_deployed, 0.0), available, application_amount)
+        own = min(
+            max(financing.own_capital_deployed, 0.0), available, application_amount
+        )
         od = min(max(application_amount - own, 0.0), od_limit)
 
     shortfall = max(application_amount - own - od, 0.0)
@@ -791,8 +804,7 @@ def compute_transaction_costs(
         brokerage += costs.brokerage_flat_sell
 
     stt = (
-        buy_value * costs.stt_pct_buy / 100.0
-        + sell_value * costs.stt_pct_sell / 100.0
+        buy_value * costs.stt_pct_buy / 100.0 + sell_value * costs.stt_pct_sell / 100.0
     )
     exchange = traded * costs.exchange_txn_pct / 100.0
     sebi = traded * costs.sebi_turnover_pct / 100.0
@@ -852,7 +864,7 @@ def allotment_distribution(
     the returned object.
     """
     probs = [min(max(float(p), 0.0), 1.0) for p in probabilities]
-    dist: List[float] = [1.0]
+    dist: list[float] = [1.0]
     for p in probs:
         nxt = [0.0] * (len(dist) + 1)
         for k, prob in enumerate(dist):
@@ -875,7 +887,7 @@ def allotment_distribution(
 # ---------------------------------------------------------------------------
 # The main engine
 # ---------------------------------------------------------------------------
-def analyze(inputs: AnalysisInputs, exit_price: Optional[float] = None) -> AnalysisResult:
+def analyze(inputs: AnalysisInputs, exit_price: float | None = None) -> AnalysisResult:
     """Run the full expected-value analysis for one IPO financing decision.
 
     Parameters
@@ -918,12 +930,10 @@ def analyze(inputs: AnalysisInputs, exit_price: Optional[float] = None) -> Analy
     opp_rate = fin.opportunity_cost_rate_pct if fin.include_opportunity_cost else 0.0
 
     od_cost_bid = simple_interest(plan.od_drawn, fin.od_rate_pct, bid_days, basis)
-    opp_cost_bid = simple_interest(
-        plan.own_capital_deployed, opp_rate, bid_days, basis
-    )
+    opp_cost_bid = simple_interest(plan.own_capital_deployed, opp_rate, bid_days, basis)
 
     # -- per account ------------------------------------------------------
-    outcomes: List[AccountOutcome] = []
+    outcomes: list[AccountOutcome] = []
     exp_gross = exp_txn = exp_tax = exp_hold_od = exp_hold_opp = 0.0
     exp_investment = 0.0
     all_allotted_net = 0.0
@@ -934,13 +944,17 @@ def analyze(inputs: AnalysisInputs, exit_price: Optional[float] = None) -> Analy
         exit_value = price * shares
         gross = exit_value - investment
         txn = compute_transaction_costs(investment, exit_value, inputs.costs)
-        deductible = txn.total if inputs.taxes.stt_deductible else txn.deductible_from_gain
+        deductible = (
+            txn.total if inputs.taxes.stt_deductible else txn.deductible_from_gain
+        )
         tax = compute_capital_gains_tax(gross, hold_days, inputs.taxes, deductible)
 
         hold_od = simple_interest(
             investment * od_share_hold, fin.od_rate_pct, hold_days, basis
         )
-        hold_opp = simple_interest(investment * own_share_hold, opp_rate, hold_days, basis)
+        hold_opp = simple_interest(
+            investment * own_share_hold, opp_rate, hold_days, basis
+        )
         # Cost of carrying *these* shares through the bidding window too - used
         # for the conditional (if-allotted) view and its break-even price.
         bid_od_on_shares = simple_interest(
@@ -1012,14 +1026,10 @@ def analyze(inputs: AnalysisInputs, exit_price: Optional[float] = None) -> Analy
     expected_opportunity_cost = financing.expected_opportunity_cost
     fd_credit = financing.fd_interest_credit
 
-    net_cash = (
-        exp_gross - exp_txn - exp_tax - expected_financing_cost + fd_credit
-    )
+    net_cash = exp_gross - exp_txn - exp_tax - expected_financing_cost + fd_credit
     net_economic = net_cash - expected_opportunity_cost
 
-    unconditional_cost = (
-        od_cost_bid + opp_cost_bid + financing.fixed_fees - fd_credit
-    )
+    unconditional_cost = od_cost_bid + opp_cost_bid + financing.fixed_fees - fd_credit
     net_if_all = all_allotted_net - unconditional_cost
     net_if_none = -unconditional_cost
 
@@ -1102,7 +1112,9 @@ def _analyze_light(inputs: AnalysisInputs) -> float:
         investment = ipo.issue_price * shares
         gross = price * shares - investment
         txn = compute_transaction_costs(investment, price * shares, inputs.costs)
-        deductible = txn.total if inputs.taxes.stt_deductible else txn.deductible_from_gain
+        deductible = (
+            txn.total if inputs.taxes.stt_deductible else txn.deductible_from_gain
+        )
         tax = compute_capital_gains_tax(gross, hold_days, inputs.taxes, deductible)
         hold_cost = simple_interest(
             investment * od_share_hold, fin.od_rate_pct, hold_days, basis
@@ -1142,12 +1154,18 @@ def _conditional_net_profit(inputs: AnalysisInputs, exit_price: float) -> float:
         exit_value = exit_price * shares
         gross = exit_value - investment
         txn = compute_transaction_costs(investment, exit_value, inputs.costs)
-        deductible = txn.total if inputs.taxes.stt_deductible else txn.deductible_from_gain
+        deductible = (
+            txn.total if inputs.taxes.stt_deductible else txn.deductible_from_gain
+        )
         tax = compute_capital_gains_tax(gross, hold_days, inputs.taxes, deductible)
         carry = (
-            simple_interest(investment * od_share_hold, fin.od_rate_pct, hold_days, basis)
+            simple_interest(
+                investment * od_share_hold, fin.od_rate_pct, hold_days, basis
+            )
             + simple_interest(investment * own_share_hold, opp_rate, hold_days, basis)
-            + simple_interest(investment * od_share_bid, fin.od_rate_pct, bid_days, basis)
+            + simple_interest(
+                investment * od_share_bid, fin.od_rate_pct, bid_days, basis
+            )
             + simple_interest(investment * own_share_bid, opp_rate, bid_days, basis)
         )
         total += gross - txn.total - tax - carry
@@ -1156,7 +1174,7 @@ def _conditional_net_profit(inputs: AnalysisInputs, exit_price: float) -> float:
 
 def break_even_exit_price(
     inputs: AnalysisInputs, mode: str = "expected_value"
-) -> Optional[float]:
+) -> float | None:
     """Exit price at which net profit is exactly zero.
 
     ``mode='if_allotted'`` prices the allotted shares alone (their transaction
@@ -1183,12 +1201,13 @@ def break_even_exit_price(
 
 def max_sustainable_od_rate(
     inputs: AnalysisInputs, upper_bound_pct: float = 500.0
-) -> Optional[float]:
+) -> float | None:
     """Highest annualised OD rate at which expected net profit stays >= 0.
 
     Returns ``None`` when the strategy loses money even at a zero financing rate
     (i.e. the problem is the trade, not the cost of money).
     """
+
     def profit_at(rate_pct: float) -> float:
         fin = replace(inputs.financing, od_rate_pct=rate_pct)
         return _analyze_light(replace(inputs, financing=fin))
@@ -1200,7 +1219,7 @@ def max_sustainable_od_rate(
     return _solve_monotonic(profit_at, 0.0, upper_bound_pct)
 
 
-def min_allotment_probability(inputs: AnalysisInputs) -> Optional[float]:
+def min_allotment_probability(inputs: AnalysisInputs) -> float | None:
     """Uniform allotment probability at which expected net profit is zero.
 
     Every account's probability is replaced by the same candidate value, so the
@@ -1208,6 +1227,7 @@ def min_allotment_probability(inputs: AnalysisInputs) -> Optional[float]:
     its face". Returns ``None`` if the strategy never breaks even (or is already
     profitable at a zero hit-rate, which only happens with negative fees).
     """
+
     def profit_at(p: float) -> float:
         accounts = tuple(replace(a, allotment_probability=p) for a in inputs.accounts)
         return _analyze_light(replace(inputs, accounts=accounts))
@@ -1223,10 +1243,14 @@ def _break_even_bundle(inputs: AnalysisInputs) -> BreakEvenResults:
     return BreakEvenResults(
         exit_price_if_allotted=cond,
         gmp_if_allotted=None if cond is None else gmp_from_listing_price(issue, cond),
-        listing_gain_pct_if_allotted=None if cond is None else listing_gain_pct(issue, cond),
+        listing_gain_pct_if_allotted=None
+        if cond is None
+        else listing_gain_pct(issue, cond),
         exit_price_expected_value=ev,
         gmp_expected_value=None if ev is None else gmp_from_listing_price(issue, ev),
-        listing_gain_pct_expected_value=None if ev is None else listing_gain_pct(issue, ev),
+        listing_gain_pct_expected_value=None
+        if ev is None
+        else listing_gain_pct(issue, ev),
         min_allotment_probability=min_allotment_probability(inputs),
         max_od_rate_pct=max_sustainable_od_rate(inputs),
     )
@@ -1244,7 +1268,7 @@ def _prov(value: Any, default: Any) -> Provenance:
     return Provenance.ASSUMED if value == default else Provenance.USER
 
 
-def assumption_ledger(inputs: AnalysisInputs) -> List[AssumptionRecord]:
+def assumption_ledger(inputs: AnalysisInputs) -> list[AssumptionRecord]:
     """Every materially relevant number with its provenance.
 
     Rendered in the UI so that no assumption is ever applied silently: each row
@@ -1253,14 +1277,16 @@ def assumption_ledger(inputs: AnalysisInputs) -> List[AssumptionRecord]:
     """
     ipo, fin, costs, taxes = inputs.ipo, inputs.financing, inputs.costs, inputs.taxes
     plan = build_funding_plan(inputs.total_application_amount, fin)
-    rows: List[AssumptionRecord] = [
+    rows: list[AssumptionRecord] = [
         AssumptionRecord("IPO", "Issue price", ipo.issue_price, Provenance.USER),
         AssumptionRecord("IPO", "Lot size", ipo.lot_size, Provenance.USER),
         AssumptionRecord(
             "IPO",
             "GMP (Rs/share)",
             ipo.gmp_absolute,
-            Provenance.USER if ipo.gmp_mode is GMPMode.ABSOLUTE else Provenance.CALCULATED,
+            Provenance.USER
+            if ipo.gmp_mode is GMPMode.ABSOLUTE
+            else Provenance.CALCULATED,
             "Grey market premium is an unregulated, unverifiable quote. It is a "
             "sentiment proxy, never a guarantee of listing performance.",
         ),
@@ -1323,14 +1349,21 @@ def assumption_ledger(inputs: AnalysisInputs) -> List[AssumptionRecord]:
             "Financing", "Funding mode", fin.funding_mode.value, Provenance.USER
         ),
         AssumptionRecord(
-            "Financing", "Own capital deployed", plan.own_capital_deployed, Provenance.CALCULATED
+            "Financing",
+            "Own capital deployed",
+            plan.own_capital_deployed,
+            Provenance.CALCULATED,
         ),
         AssumptionRecord("Financing", "OD drawn", plan.od_drawn, Provenance.CALCULATED),
         AssumptionRecord(
             "Financing", "OD limit (FD x LTV)", plan.od_limit, Provenance.CALCULATED
         ),
-        AssumptionRecord("Financing", "OD rate (% p.a.)", fin.od_rate_pct, Provenance.USER),
-        AssumptionRecord("Financing", "FD rate (% p.a.)", fin.fd_rate_pct, Provenance.USER),
+        AssumptionRecord(
+            "Financing", "OD rate (% p.a.)", fin.od_rate_pct, Provenance.USER
+        ),
+        AssumptionRecord(
+            "Financing", "FD rate (% p.a.)", fin.fd_rate_pct, Provenance.USER
+        ),
         AssumptionRecord(
             "Financing", "Days capital blocked", fin.days_blocked, Provenance.USER
         ),
@@ -1346,7 +1379,8 @@ def assumption_ledger(inputs: AnalysisInputs) -> List[AssumptionRecord]:
             "Opportunity cost applied",
             fin.include_opportunity_cost,
             Provenance.ASSUMED,
-            f"Own capital charged at {fin.opportunity_cost_rate_pct}% p.a. when enabled.",
+            f"Own capital charged at {fin.opportunity_cost_rate_pct}% p.a. when "
+            f"enabled.",
         ),
         AssumptionRecord(
             "Financing",
@@ -1365,15 +1399,31 @@ def assumption_ledger(inputs: AnalysisInputs) -> List[AssumptionRecord]:
     ]
 
     for label, value, default in (
-        ("Brokerage % (sell)", costs.brokerage_pct_sell, _DEFAULT_COSTS.brokerage_pct_sell),
-        ("Brokerage flat (sell)", costs.brokerage_flat_sell, _DEFAULT_COSTS.brokerage_flat_sell),
+        (
+            "Brokerage % (sell)",
+            costs.brokerage_pct_sell,
+            _DEFAULT_COSTS.brokerage_pct_sell,
+        ),
+        (
+            "Brokerage flat (sell)",
+            costs.brokerage_flat_sell,
+            _DEFAULT_COSTS.brokerage_flat_sell,
+        ),
         ("STT % (sell)", costs.stt_pct_sell, _DEFAULT_COSTS.stt_pct_sell),
         ("STT % (buy/allotment)", costs.stt_pct_buy, _DEFAULT_COSTS.stt_pct_buy),
         ("Exchange txn %", costs.exchange_txn_pct, _DEFAULT_COSTS.exchange_txn_pct),
         ("SEBI turnover %", costs.sebi_turnover_pct, _DEFAULT_COSTS.sebi_turnover_pct),
-        ("Stamp duty % (buy)", costs.stamp_duty_pct_buy, _DEFAULT_COSTS.stamp_duty_pct_buy),
+        (
+            "Stamp duty % (buy)",
+            costs.stamp_duty_pct_buy,
+            _DEFAULT_COSTS.stamp_duty_pct_buy,
+        ),
         ("GST %", costs.gst_pct, _DEFAULT_COSTS.gst_pct),
-        ("DP charges (sell)", costs.dp_charges_flat_sell, _DEFAULT_COSTS.dp_charges_flat_sell),
+        (
+            "DP charges (sell)",
+            costs.dp_charges_flat_sell,
+            _DEFAULT_COSTS.dp_charges_flat_sell,
+        ),
     ):
         rows.append(
             AssumptionRecord(
@@ -1381,17 +1431,34 @@ def assumption_ledger(inputs: AnalysisInputs) -> List[AssumptionRecord]:
                 label,
                 value,
                 _prov(value, default),
-                "Broker/statutory rates change over time - verify against your contract note.",
+                "Broker/statutory rates change over time - verify against your "
+                "contract note.",
             )
         )
 
     for label, value, default in (
         ("STCG rate %", taxes.stcg_rate_pct, _DEFAULT_TAXES.stcg_rate_pct),
         ("LTCG rate %", taxes.ltcg_rate_pct, _DEFAULT_TAXES.ltcg_rate_pct),
-        ("LTCG threshold (days)", taxes.ltcg_threshold_days, _DEFAULT_TAXES.ltcg_threshold_days),
-        ("Cess & surcharge %", taxes.cess_and_surcharge_pct, _DEFAULT_TAXES.cess_and_surcharge_pct),
-        ("LTCG exemption applied", taxes.apply_ltcg_exemption, _DEFAULT_TAXES.apply_ltcg_exemption),
-        ("Tax shield on losses", taxes.recognise_tax_shield_on_loss, _DEFAULT_TAXES.recognise_tax_shield_on_loss),
+        (
+            "LTCG threshold (days)",
+            taxes.ltcg_threshold_days,
+            _DEFAULT_TAXES.ltcg_threshold_days,
+        ),
+        (
+            "Cess & surcharge %",
+            taxes.cess_and_surcharge_pct,
+            _DEFAULT_TAXES.cess_and_surcharge_pct,
+        ),
+        (
+            "LTCG exemption applied",
+            taxes.apply_ltcg_exemption,
+            _DEFAULT_TAXES.apply_ltcg_exemption,
+        ),
+        (
+            "Tax shield on losses",
+            taxes.recognise_tax_shield_on_loss,
+            _DEFAULT_TAXES.recognise_tax_shield_on_loss,
+        ),
     ):
         rows.append(
             AssumptionRecord(
@@ -1415,7 +1482,9 @@ def expected_net_profit(inputs: AnalysisInputs) -> float:
     return _analyze_light(inputs)
 
 
-def conditional_net_profit(inputs: AnalysisInputs, exit_price: Optional[float] = None) -> float:
+def conditional_net_profit(
+    inputs: AnalysisInputs, exit_price: float | None = None
+) -> float:
     """Net profit assuming every application is allotted."""
     price = inputs.ipo.expected_exit_price if exit_price is None else float(exit_price)
     return _conditional_net_profit(inputs, price)

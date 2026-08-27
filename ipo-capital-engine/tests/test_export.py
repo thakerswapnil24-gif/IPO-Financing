@@ -69,8 +69,9 @@ def test_csv_export_is_readable_and_labelled(bundle):
 def test_excel_export_produces_a_valid_workbook(bundle):
     payload = bundle_to_excel(bundle)
     assert payload[:2] == b"PK"  # xlsx is a zip archive
-    from openpyxl import load_workbook
     import io
+
+    from openpyxl import load_workbook
 
     workbook = load_workbook(io.BytesIO(payload))
     assert "Summary" in workbook.sheetnames
@@ -87,7 +88,7 @@ def test_pdf_export_has_a_valid_structure(bundle):
 
     # Every cross-reference offset must point at its object header.
     start = payload.rindex(b"startxref")
-    xref_offset = int(payload[start + len("startxref"):].split()[0])
+    xref_offset = int(payload[start + len("startxref") :].split()[0])
     assert payload[xref_offset : xref_offset + 4] == b"xref"
     lines = payload[xref_offset:].split(b"\n")
     count = int(lines[1].split()[1])
@@ -95,7 +96,10 @@ def test_pdf_export_has_a_valid_structure(bundle):
         if line.endswith(b"f "):
             continue
         offset = int(line.split()[0])
-        assert payload[offset : offset + len(f"{index} 0 obj")] == f"{index} 0 obj".encode()
+        assert (
+            payload[offset : offset + len(f"{index} 0 obj")]
+            == f"{index} 0 obj".encode()
+        )
 
 
 def test_pdf_escapes_characters_that_would_corrupt_the_file():

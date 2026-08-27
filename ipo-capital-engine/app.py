@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import math
 import traceback
+from collections.abc import Sequence
 from dataclasses import replace
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -89,9 +89,11 @@ VERDICT_STYLE = {
 # ---------------------------------------------------------------------------
 # Formatting helpers (rounding happens here and nowhere else)
 # ---------------------------------------------------------------------------
-def inr(value: Optional[float], decimals: int = 0) -> str:
+def inr(value: float | None, decimals: int = 0) -> str:
     """Format a number in the Indian digit grouping with a rupee sign."""
-    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+    if value is None or (
+        isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+    ):
         return "n/a"
     sign = "-" if value < 0 else ""
     magnitude = abs(float(value))
@@ -106,15 +108,17 @@ def inr(value: Optional[float], decimals: int = 0) -> str:
             head = head[:-2]
         if head:
             groups.insert(0, head)
-        digits = ",".join(groups + [tail])
+        digits = ",".join([*groups, tail])
     if decimals:
         digits += f"{fraction:.{decimals}f}"[1:]
     return f"{sign}Rs {digits}"
 
 
-def compact_inr(value: Optional[float]) -> str:
+def compact_inr(value: float | None) -> str:
     """Rupees in lakh/crore units for KPI cards."""
-    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+    if value is None or (
+        isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+    ):
         return "n/a"
     magnitude = abs(float(value))
     sign = "-" if value < 0 else ""
@@ -125,16 +129,20 @@ def compact_inr(value: Optional[float]) -> str:
     return inr(value)
 
 
-def pct(value: Optional[float], decimals: int = 2) -> str:
+def pct(value: float | None, decimals: int = 2) -> str:
     """Format a fraction (0.05 -> '5.00%')."""
-    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+    if value is None or (
+        isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+    ):
         return "n/a"
     return f"{value * 100:.{decimals}f}%"
 
 
-def pct_points(value: Optional[float], decimals: int = 2) -> str:
+def pct_points(value: float | None, decimals: int = 2) -> str:
     """Format a number already expressed in percent (10.5 -> '10.50%')."""
-    if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))):
+    if value is None or (
+        isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+    ):
         return "n/a"
     return f"{value:.{decimals}f}%"
 
@@ -142,7 +150,13 @@ def pct_points(value: Optional[float], decimals: int = 2) -> str:
 # ---------------------------------------------------------------------------
 # Session state and presets
 # ---------------------------------------------------------------------------
-ACCOUNT_COLUMNS = ["Account", "Category", "Lots applied", "Allotment probability %", "Lots if allotted"]
+ACCOUNT_COLUMNS = [
+    "Account",
+    "Category",
+    "Lots applied",
+    "Allotment probability %",
+    "Lots if allotted",
+]
 
 
 def accounts_to_frame(accounts: Sequence[ApplicationAccount]) -> pd.DataFrame:
@@ -161,8 +175,8 @@ def accounts_to_frame(accounts: Sequence[ApplicationAccount]) -> pd.DataFrame:
     )
 
 
-def frame_to_accounts(frame: pd.DataFrame) -> List[ApplicationAccount]:
-    accounts: List[ApplicationAccount] = []
+def frame_to_accounts(frame: pd.DataFrame) -> list[ApplicationAccount]:
+    accounts: list[ApplicationAccount] = []
     for index, row in frame.iterrows():
         label = str(row.get("Account") or f"Account {index + 1}").strip()
         try:
@@ -174,7 +188,8 @@ def frame_to_accounts(frame: pd.DataFrame) -> List[ApplicationAccount]:
                 label=label or f"Account {index + 1}",
                 category=category,
                 lots_applied=int(row.get("Lots applied") or 0),
-                allotment_probability=float(row.get("Allotment probability %") or 0.0) / 100.0,
+                allotment_probability=float(row.get("Allotment probability %") or 0.0)
+                / 100.0,
                 lots_allotted_if_successful=float(row.get("Lots if allotted") or 0.0),
             )
         )
@@ -253,7 +268,9 @@ def init_state() -> None:
 # ---------------------------------------------------------------------------
 # Sidebar: every assumption the model uses
 # ---------------------------------------------------------------------------
-def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dict[str, ScenarioDefinition]]:
+def sidebar() -> tuple[
+    AnalysisInputs, DecisionThresholds, MonteCarloConfig, dict[str, ScenarioDefinition]
+]:
     """Collect every input. Nothing is assumed that is not shown here."""
     st.sidebar.title("Assumptions")
     st.sidebar.caption(
@@ -277,7 +294,9 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
         issue_price = st.number_input(
             "Issue price (Rs/share)", min_value=0.0, step=1.0, key="issue_price"
         )
-        lot_size = st.number_input("Lot size (shares)", min_value=1, step=1, key="lot_size")
+        lot_size = st.number_input(
+            "Lot size (shares)", min_value=1, step=1, key="lot_size"
+        )
         st.caption(f"One lot = {inr(issue_price * lot_size)} at the cut-off price.")
 
         gmp_mode = st.radio(
@@ -287,7 +306,9 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
             horizontal=True,
         )
         gmp_value = st.number_input(
-            "GMP (Rs/share)" if gmp_mode == GMPMode.ABSOLUTE.value else "GMP (% of issue price)",
+            "GMP (Rs/share)"
+            if gmp_mode == GMPMode.ABSOLUTE.value
+            else "GMP (% of issue price)",
             step=1.0,
             key="gmp_value",
         )
@@ -317,8 +338,13 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
             disabled=not exit_differs,
         )
         holding_days = st.number_input(
-            "Holding period after allotment (days)", min_value=0, step=1, key="holding_days",
-            help="0 = sell on listing day. Drives both the carry cost and the tax rate.",
+            "Holding period after allotment (days)",
+            min_value=0,
+            step=1,
+            key="holding_days",
+            help=(
+                "0 = sell on listing day. Drives both the carry cost and the tax rate."
+            ),
         )
 
     ipo = IPOAssumptions(
@@ -358,7 +384,11 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
                     "Lots applied", min_value=1, step=1, format="%d"
                 ),
                 "Allotment probability %": st.column_config.NumberColumn(
-                    "Allotment prob %", min_value=0.0, max_value=100.0, step=1.0, format="%.1f"
+                    "Allotment prob %",
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=1.0,
+                    format="%.1f",
                 ),
                 "Lots if allotted": st.column_config.NumberColumn(
                     "Lots if allotted",
@@ -381,7 +411,9 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
     accounts = frame_to_accounts(edited)
     if not accounts:
         accounts = [ApplicationAccount()]
-    total_application = sum(a.application_amount(ipo.issue_price, ipo.lot_size) for a in accounts)
+    total_application = sum(
+        a.application_amount(ipo.issue_price, ipo.lot_size) for a in accounts
+    )
     st.sidebar.metric("Total application amount", compact_inr(total_application))
 
     # -- Financing ---------------------------------------------------------
@@ -390,7 +422,10 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
             "Funding mode", [m.value for m in FundingMode], key="funding_mode"
         )
         own_available = st.number_input(
-            "Own capital available (Rs)", min_value=0.0, step=10_000.0, key="own_available"
+            "Own capital available (Rs)",
+            min_value=0.0,
+            step=10_000.0,
+            key="own_available",
         )
         own_deployed = st.number_input(
             "Own capital to deploy (Rs)",
@@ -407,27 +442,45 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
             "FD interest rate (% p.a.)", min_value=0.0, step=0.25, key="fd_rate"
         )
         od_ltv = st.number_input(
-            "OD limit against FD (% LTV)", min_value=0.0, max_value=100.0, step=5.0, key="od_ltv"
+            "OD limit against FD (% LTV)",
+            min_value=0.0,
+            max_value=100.0,
+            step=5.0,
+            key="od_ltv",
         )
         od_rate = st.number_input(
             "OD interest rate (% p.a.)", min_value=0.0, step=0.25, key="od_rate"
         )
         st.caption(f"Sanctioned OD limit: {compact_inr(fd_amount * od_ltv / 100.0)}")
         processing_fee = st.number_input(
-            "Processing fee (Rs, one-time)", min_value=0.0, step=100.0, key="processing_fee"
+            "Processing fee (Rs, one-time)",
+            min_value=0.0,
+            step=100.0,
+            key="processing_fee",
         )
         other_financing = st.number_input(
-            "Other financing charges (Rs)", min_value=0.0, step=100.0, key="other_financing"
+            "Other financing charges (Rs)",
+            min_value=0.0,
+            step=100.0,
+            key="other_financing",
         )
         days_blocked = st.number_input(
-            "Days capital is blocked", min_value=0, step=1, key="days_blocked",
+            "Days capital is blocked",
+            min_value=0,
+            step=1,
+            key="days_blocked",
             help="Application date to refund/allotment. Typically 5-7 days on the "
             "T+3 timetable.",
         )
         opp_rate = st.number_input(
-            "Opportunity cost of own capital (% p.a.)", min_value=0.0, step=0.25, key="opp_rate"
+            "Opportunity cost of own capital (% p.a.)",
+            min_value=0.0,
+            step=0.25,
+            key="opp_rate",
         )
-        include_opp = st.checkbox("Charge opportunity cost on own capital", key="include_opp")
+        include_opp = st.checkbox(
+            "Charge opportunity cost on own capital", key="include_opp"
+        )
         finance_hold = st.checkbox(
             "Keep the OD outstanding through the holding period", key="finance_hold"
         )
@@ -437,9 +490,7 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
             help="Off by default: a pledged FD earns its interest whether or not you "
             "bid, so it is not a benefit of the strategy.",
         )
-        day_basis = st.selectbox(
-            "Day-count basis", [365, 360, 366], key="day_basis"
-        )
+        day_basis = st.selectbox("Day-count basis", [365, 360, 366], key="day_basis")
 
     financing = FinancingAssumptions(
         funding_mode=FundingMode(funding_mode),
@@ -463,29 +514,55 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
     with st.sidebar.expander("4. Transaction costs", expanded=False):
         st.caption("Broker and statutory charges. Verify against your contract note.")
         brokerage_pct_sell = st.number_input(
-            "Brokerage % of sell value", min_value=0.0, step=0.01, format="%.4f", key="brokerage_pct_sell"
+            "Brokerage % of sell value",
+            min_value=0.0,
+            step=0.01,
+            format="%.4f",
+            key="brokerage_pct_sell",
         )
         brokerage_flat_sell = st.number_input(
-            "Brokerage flat per sell order (Rs)", min_value=0.0, step=1.0, key="brokerage_flat_sell"
+            "Brokerage flat per sell order (Rs)",
+            min_value=0.0,
+            step=1.0,
+            key="brokerage_flat_sell",
         )
         brokerage_flat_buy = st.number_input(
-            "Brokerage flat on allotment (Rs)", min_value=0.0, step=1.0, key="brokerage_flat_buy"
+            "Brokerage flat on allotment (Rs)",
+            min_value=0.0,
+            step=1.0,
+            key="brokerage_flat_buy",
         )
         stt_sell = st.number_input(
             "STT % on sell", min_value=0.0, step=0.01, format="%.4f", key="stt_sell"
         )
         stt_buy = st.number_input(
-            "STT % on allotment", min_value=0.0, step=0.01, format="%.4f", key="stt_buy",
+            "STT % on allotment",
+            min_value=0.0,
+            step=0.01,
+            format="%.4f",
+            key="stt_buy",
             help="Primary-market allotment normally attracts no STT.",
         )
         exchange_pct = st.number_input(
-            "Exchange transaction charges %", min_value=0.0, step=0.0001, format="%.5f", key="exchange_pct"
+            "Exchange transaction charges %",
+            min_value=0.0,
+            step=0.0001,
+            format="%.5f",
+            key="exchange_pct",
         )
         sebi_pct = st.number_input(
-            "SEBI turnover fees %", min_value=0.0, step=0.0001, format="%.5f", key="sebi_pct"
+            "SEBI turnover fees %",
+            min_value=0.0,
+            step=0.0001,
+            format="%.5f",
+            key="sebi_pct",
         )
         stamp_pct = st.number_input(
-            "Stamp duty % on allotment", min_value=0.0, step=0.001, format="%.4f", key="stamp_pct"
+            "Stamp duty % on allotment",
+            min_value=0.0,
+            step=0.001,
+            format="%.4f",
+            key="stamp_pct",
         )
         gst_pct_value = st.number_input(
             "GST % on brokerage and charges", min_value=0.0, step=1.0, key="gst_pct"
@@ -513,18 +590,29 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
 
     with st.sidebar.expander("5. Taxes", expanded=False):
         st.caption("Rates are configurable assumptions, not embedded law.")
-        stcg = st.number_input("Short-term capital gains rate %", min_value=0.0, step=0.5, key="stcg")
-        ltcg = st.number_input("Long-term capital gains rate %", min_value=0.0, step=0.5, key="ltcg")
+        stcg = st.number_input(
+            "Short-term capital gains rate %", min_value=0.0, step=0.5, key="stcg"
+        )
+        ltcg = st.number_input(
+            "Long-term capital gains rate %", min_value=0.0, step=0.5, key="ltcg"
+        )
         ltcg_days = st.number_input(
             "Long-term threshold (days)", min_value=1, step=1, key="ltcg_days"
         )
-        cess = st.number_input("Cess and surcharge %", min_value=0.0, step=0.5, key="cess")
+        cess = st.number_input(
+            "Cess and surcharge %", min_value=0.0, step=0.5, key="cess"
+        )
         deduct_costs = st.checkbox(
             "Deduct transfer costs from the taxable gain", key="deduct_costs"
         )
-        apply_exemption = st.checkbox("Apply the annual LTCG exemption", key="apply_exemption")
+        apply_exemption = st.checkbox(
+            "Apply the annual LTCG exemption", key="apply_exemption"
+        )
         exemption_amount = st.number_input(
-            "LTCG exemption (Rs)", min_value=0.0, step=25_000.0, key="exemption_amount",
+            "LTCG exemption (Rs)",
+            min_value=0.0,
+            step=25_000.0,
+            key="exemption_amount",
             disabled=not apply_exemption,
         )
         tax_shield = st.checkbox(
@@ -548,18 +636,36 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
     with st.sidebar.expander("6. Scenario definitions", expanded=False):
         st.caption("Scenario factors are editable; nothing here is a forecast.")
         bear_gmp = st.slider(
-            "Bear: GMP multiplier", -2.0, 1.0, float(DEFAULT_BEAR.gmp_multiplier), 0.1, key="bear_gmp"
+            "Bear: GMP multiplier",
+            -2.0,
+            1.0,
+            float(DEFAULT_BEAR.gmp_multiplier),
+            0.1,
+            key="bear_gmp",
         )
         bear_prob = st.slider(
-            "Bear: hit-rate multiplier", 0.0, 1.0,
-            float(DEFAULT_BEAR.allotment_probability_multiplier), 0.05, key="bear_prob"
+            "Bear: hit-rate multiplier",
+            0.0,
+            1.0,
+            float(DEFAULT_BEAR.allotment_probability_multiplier),
+            0.05,
+            key="bear_prob",
         )
         bull_gmp = st.slider(
-            "Bull: GMP multiplier", 1.0, 3.0, float(DEFAULT_BULL.gmp_multiplier), 0.1, key="bull_gmp"
+            "Bull: GMP multiplier",
+            1.0,
+            3.0,
+            float(DEFAULT_BULL.gmp_multiplier),
+            0.1,
+            key="bull_gmp",
         )
         bull_prob = st.slider(
-            "Bull: hit-rate multiplier", 1.0, 3.0,
-            float(DEFAULT_BULL.allotment_probability_multiplier), 0.05, key="bull_prob"
+            "Bull: hit-rate multiplier",
+            1.0,
+            3.0,
+            float(DEFAULT_BULL.allotment_probability_multiplier),
+            0.05,
+            key="bull_prob",
         )
 
     scenario_definitions = {
@@ -572,7 +678,9 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
                 "relative to your base case."
             ),
         ),
-        "base": ScenarioDefinition(name="Base", description="Your own assumptions, unchanged."),
+        "base": ScenarioDefinition(
+            name="Base", description="Your own assumptions, unchanged."
+        ),
         "bull": ScenarioDefinition(
             name="Bull",
             gmp_multiplier=bull_gmp,
@@ -587,9 +695,14 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
     with st.sidebar.expander("7. Decision thresholds", expanded=False):
         st.caption("Policy choices that turn metrics into a verdict.")
         spread = st.number_input(
-            "Required annualised spread over the OD rate (pp)", min_value=0.0, step=1.0, value=5.0
+            "Required annualised spread over the OD rate (pp)",
+            min_value=0.0,
+            step=1.0,
+            value=5.0,
         )
-        max_fin_share = st.slider("Max financing cost / gross profit", 0.0, 1.0, 0.60, 0.05)
+        max_fin_share = st.slider(
+            "Max financing cost / gross profit", 0.0, 1.0, 0.60, 0.05
+        )
         max_p_loss = st.slider("Max probability of loss", 0.0, 1.0, 0.60, 0.05)
         min_gmp_mos = st.slider("Min GMP margin of safety", 0.0, 1.0, 0.30, 0.05)
         min_prob_mos = st.slider("Min hit-rate margin of safety", 0.0, 1.0, 0.30, 0.05)
@@ -598,7 +711,10 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
         )
         max_bear = st.slider("Max bear-case loss / own equity", 0.0, 0.5, 0.05, 0.01)
         max_be_gain = st.number_input(
-            "Max plausible break-even listing gain %", min_value=0.0, step=1.0, value=15.0
+            "Max plausible break-even listing gain %",
+            min_value=0.0,
+            step=1.0,
+            value=15.0,
         )
 
     thresholds = DecisionThresholds(
@@ -624,18 +740,33 @@ def sidebar() -> Tuple[AnalysisInputs, DecisionThresholds, MonteCarloConfig, Dic
             "Listing gain standard deviation (pp)", min_value=0.0, step=1.0, value=15.0
         )
         gain_low, gain_high = st.slider(
-            "Listing gain range for triangular/uniform (%)", -60.0, 120.0, (-20.0, 40.0), 5.0
+            "Listing gain range for triangular/uniform (%)",
+            -60.0,
+            120.0,
+            (-20.0, 40.0),
+            5.0,
         )
         probability_distribution = st.selectbox(
             "Allotment probability distribution", ["fixed", "beta"]
         )
         concentration = st.number_input(
-            "Beta concentration (higher = more certain)", min_value=1.0, step=1.0, value=20.0
+            "Beta concentration (higher = more certain)",
+            min_value=1.0,
+            step=1.0,
+            value=20.0,
         )
-        holding_distribution = st.selectbox("Holding period distribution", ["fixed", "uniform_int"])
-        holding_low, holding_high = st.slider("Holding period range (days)", 0, 60, (1, 5))
-        od_distribution = st.selectbox("OD rate distribution", ["fixed", "normal", "uniform"])
-        od_std = st.number_input("OD rate standard deviation (pp)", min_value=0.0, step=0.25, value=1.0)
+        holding_distribution = st.selectbox(
+            "Holding period distribution", ["fixed", "uniform_int"]
+        )
+        holding_low, holding_high = st.slider(
+            "Holding period range (days)", 0, 60, (1, 5)
+        )
+        od_distribution = st.selectbox(
+            "OD rate distribution", ["fixed", "normal", "uniform"]
+        )
+        od_std = st.number_input(
+            "OD rate standard deviation (pp)", min_value=0.0, step=0.25, value=1.0
+        )
         od_low, od_high = st.slider("OD rate range (%)", 0.0, 30.0, (9.0, 13.0), 0.5)
 
     monte_carlo_config = MonteCarloConfig(
@@ -682,21 +813,21 @@ def cached_risk(result: AnalysisResult, bear: ScenarioDefinition) -> RiskMetrics
 
 @st.cache_data(show_spinner=False)
 def cached_scenarios(
-    inputs: AnalysisInputs, definitions: Tuple[ScenarioDefinition, ...]
-) -> List[ScenarioResult]:
+    inputs: AnalysisInputs, definitions: tuple[ScenarioDefinition, ...]
+) -> list[ScenarioResult]:
     return run_scenarios(inputs, definitions)
 
 
 @st.cache_data(show_spinner="Building sensitivity grid...")
 def cached_gmp_grid(
-    inputs: AnalysisInputs, gmps: Tuple[float, ...], probabilities: Tuple[float, ...]
+    inputs: AnalysisInputs, gmps: tuple[float, ...], probabilities: tuple[float, ...]
 ) -> pd.DataFrame:
     return sensitivity_gmp_vs_probability(inputs, gmps, probabilities)
 
 
 @st.cache_data(show_spinner="Building sensitivity grid...")
 def cached_rate_grid(
-    inputs: AnalysisInputs, rates: Tuple[float, ...], gains: Tuple[float, ...]
+    inputs: AnalysisInputs, rates: tuple[float, ...], gains: tuple[float, ...]
 ) -> pd.DataFrame:
     return sensitivity_od_rate_vs_listing_gain(inputs, rates, gains)
 
@@ -737,7 +868,10 @@ def profit_waterfall(result: AnalysisResult) -> go.Figure:
             measure=measures,
             x=labels,
             y=values,
-            text=[inr(v) if m != "total" else inr(result.expected_net_profit) for v, m in zip(values, measures)],
+            text=[
+                inr(v) if m != "total" else inr(result.expected_net_profit)
+                for v, m in zip(values, measures, strict=True)
+            ],
             textposition="outside",
             connector={"line": {"color": NEUTRAL}},
             increasing={"marker": {"color": POSITIVE}},
@@ -748,7 +882,7 @@ def profit_waterfall(result: AnalysisResult) -> go.Figure:
     figure.update_layout(
         title="From expected gross profit to expected net profit",
         yaxis_title="Rupees",
-        margin=dict(t=50, b=40, l=10, r=10),
+        margin={"t": 50, "b": 40, "l": 10, "r": 10},
         height=420,
     )
     return figure
@@ -762,24 +896,39 @@ def break_even_curve(inputs: AnalysisInputs, result: AnalysisResult) -> go.Figur
     prices = np.linspace(max(issue * 0.6, 0.0), high, 60)
     profits = [
         expected_net_profit(
-            replace(inputs, ipo=replace(inputs.ipo, expected_exit_price_override=float(price)))
+            replace(
+                inputs,
+                ipo=replace(inputs.ipo, expected_exit_price_override=float(price)),
+            )
         )
         for price in prices
     ]
     figure = go.Figure()
     figure.add_trace(
-        go.Scatter(x=prices, y=profits, mode="lines", name="Expected net profit", line=dict(color=ACCENT, width=3))
+        go.Scatter(
+            x=prices,
+            y=profits,
+            mode="lines",
+            name="Expected net profit",
+            line={"color": ACCENT, "width": 3},
+        )
     )
     figure.add_hline(y=0, line_dash="dot", line_color=NEUTRAL)
     figure.add_vline(
-        x=issue, line_dash="dot", line_color=NEUTRAL,
-        annotation_text="Issue price", annotation_position="top left",
+        x=issue,
+        line_dash="dot",
+        line_color=NEUTRAL,
+        annotation_text="Issue price",
+        annotation_position="top left",
     )
     break_even = result.break_even.exit_price_expected_value
     if break_even is not None:
         figure.add_vline(
-            x=break_even, line_dash="dash", line_color=NEGATIVE,
-            annotation_text=f"Break-even {inr(break_even, 2)}", annotation_position="top right",
+            x=break_even,
+            line_dash="dash",
+            line_color=NEGATIVE,
+            annotation_text=f"Break-even {inr(break_even, 2)}",
+            annotation_position="top right",
         )
     figure.add_trace(
         go.Scatter(
@@ -787,7 +936,10 @@ def break_even_curve(inputs: AnalysisInputs, result: AnalysisResult) -> go.Figur
             y=[result.expected_net_profit],
             mode="markers",
             name="Your assumption",
-            marker=dict(size=12, color=POSITIVE if result.expected_net_profit > 0 else NEGATIVE),
+            marker={
+                "size": 12,
+                "color": POSITIVE if result.expected_net_profit > 0 else NEGATIVE,
+            },
         )
     )
     figure.update_layout(
@@ -795,12 +947,18 @@ def break_even_curve(inputs: AnalysisInputs, result: AnalysisResult) -> go.Figur
         xaxis_title="Exit price (Rs)",
         yaxis_title="Expected net profit (Rs)",
         height=420,
-        margin=dict(t=50, b=40, l=10, r=10),
+        margin={"t": 50, "b": 40, "l": 10, "r": 10},
     )
     return figure
 
 
-def heatmap(frame: pd.DataFrame, title: str, x_title: str, y_title: str, x_format: str = "{:.0%}") -> go.Figure:
+def heatmap(
+    frame: pd.DataFrame,
+    title: str,
+    x_title: str,
+    y_title: str,
+    x_format: str = "{:.0%}",
+) -> go.Figure:
     """Conditional-formatted sensitivity grid centred on break-even."""
     z = frame.to_numpy(dtype=float)
     limit = float(np.nanmax(np.abs(z))) or 1.0
@@ -816,8 +974,11 @@ def heatmap(frame: pd.DataFrame, title: str, x_title: str, y_title: str, x_forma
             text=[[inr(value) for value in row] for row in z],
             texttemplate="%{text}",
             textfont={"size": 11},
-            colorbar=dict(title="Net profit"),
-            hovertemplate=f"{y_title}: %{{y}}<br>{x_title}: %{{x}}<br>Expected net profit: %{{text}}<extra></extra>",
+            colorbar={"title": "Net profit"},
+            hovertemplate=(
+                f"{y_title}: %{{y}}<br>{x_title}: %{{x}}<br>Expected net profit: "
+                f"%{{text}}<extra></extra>"
+            ),
         )
     )
     figure.update_layout(
@@ -825,7 +986,7 @@ def heatmap(frame: pd.DataFrame, title: str, x_title: str, y_title: str, x_forma
         xaxis_title=x_title,
         yaxis_title=y_title,
         height=460,
-        margin=dict(t=60, b=40, l=10, r=10),
+        margin={"t": 60, "b": 40, "l": 10, "r": 10},
     )
     return figure
 
@@ -838,12 +999,14 @@ def monte_carlo_chart(simulation) -> go.Figure:
         go.Histogram(
             x=profits,
             nbinsx=80,
-            marker=dict(color=ACCENT),
+            marker={"color": ACCENT},
             name="Simulated outcomes",
             hovertemplate="Net profit: %{x}<br>Paths: %{y}<extra></extra>",
         )
     )
-    figure.add_vline(x=0, line_color=NEGATIVE, line_dash="dot", annotation_text="Break-even")
+    figure.add_vline(
+        x=0, line_color=NEGATIVE, line_dash="dot", annotation_text="Break-even"
+    )
     for quantile, colour in ((5, NEGATIVE), (50, "#b26a00"), (95, POSITIVE)):
         figure.add_vline(
             x=simulation.percentiles[quantile],
@@ -857,7 +1020,7 @@ def monte_carlo_chart(simulation) -> go.Figure:
         xaxis_title="Net profit (Rs)",
         yaxis_title="Number of simulated paths",
         height=440,
-        margin=dict(t=60, b=40, l=10, r=10),
+        margin={"t": 60, "b": 40, "l": 10, "r": 10},
         showlegend=False,
     )
     return figure
@@ -882,7 +1045,7 @@ def outcome_distribution_chart(risk: RiskMetrics) -> go.Figure:
         yaxis_title="Probability",
         yaxis_tickformat=".0%",
         height=400,
-        margin=dict(t=60, b=40, l=10, r=10),
+        margin={"t": 60, "b": 40, "l": 10, "r": 10},
     )
     return figure
 
@@ -921,7 +1084,7 @@ def scenario_chart(scenarios: Sequence[ScenarioResult]) -> go.Figure:
             x=names,
             y=[s.result.expected_net_profit for s in scenarios],
             mode="markers+text",
-            marker=dict(size=14, color=ACCENT, symbol="diamond"),
+            marker={"size": 14, "color": ACCENT, "symbol": "diamond"},
             text=[inr(s.result.expected_net_profit) for s in scenarios],
             textposition="top center",
         )
@@ -931,7 +1094,7 @@ def scenario_chart(scenarios: Sequence[ScenarioResult]) -> go.Figure:
         title="Scenario outcomes",
         yaxis_title="Rupees",
         height=420,
-        margin=dict(t=60, b=40, l=10, r=10),
+        margin={"t": 60, "b": 40, "l": 10, "r": 10},
     )
     return figure
 
@@ -946,21 +1109,30 @@ def render_validation(report: ValidationReport) -> None:
             + "\n".join(f"- **{i.field}** - {i.message}" for i in report.errors)
         )
     if report.warnings:
-        with st.expander(f"{len(report.warnings)} warning(s) about your inputs", expanded=bool(report.errors)):
+        with st.expander(
+            f"{len(report.warnings)} warning(s) about your inputs",
+            expanded=bool(report.errors),
+        ):
             for issue in report.warnings:
                 st.warning(f"**{issue.field}** - {issue.message}")
 
 
-def render_kpis(result: AnalysisResult, risk: RiskMetrics, decision: DecisionOutcome) -> None:
+def render_kpis(
+    result: AnalysisResult, risk: RiskMetrics, decision: DecisionOutcome
+) -> None:
     capital = result.capital
     icon, colour = VERDICT_STYLE[decision.verdict]
 
     row1 = st.columns(4)
-    row1[0].metric("Total application capital", compact_inr(capital.total_application_amount))
+    row1[0].metric(
+        "Total application capital", compact_inr(capital.total_application_amount)
+    )
     row1[1].metric(
         "OD drawn",
         compact_inr(capital.borrowed_capital),
-        f"{result.funding.od_utilisation_pct:.0f}% of limit" if result.funding.od_limit else "no OD limit set",
+        f"{result.funding.od_utilisation_pct:.0f}% of limit"
+        if result.funding.od_limit
+        else "no OD limit set",
         delta_color="off",
     )
     row1[2].metric(
@@ -990,7 +1162,8 @@ def render_kpis(result: AnalysisResult, risk: RiskMetrics, decision: DecisionOut
         f"annualised {pct(capital.annualized_return_on_economic_capital)}",
         delta_color="off",
         help=(
-            f"The headline figure is the return over one {capital.capital_weighted_days:.1f}-day "
+            f"The headline figure is the return over one "
+            f"{capital.capital_weighted_days:.1f}-day "
             "capital cycle. The annualised number compounds that cycle across a full "
             "year, which assumes you can find and fund an identical opportunity "
             "immediately and repeatedly. IPO supply is lumpy, so treat it as an "
@@ -1011,9 +1184,11 @@ def render_kpis(result: AnalysisResult, risk: RiskMetrics, decision: DecisionOut
     )
 
     st.markdown(
-        f"<div style='padding:14px 18px;border-radius:8px;border-left:6px solid {colour};"
+        f"<div style='padding:14px 18px;border-radius:8px;border-left:6px solid "
+        f"{colour};"
         f"background:rgba(128,128,128,0.08);margin-top:8px'>"
-        f"<span style='font-size:1.3rem;font-weight:700;color:{colour}'>{icon} {decision.verdict.value}</span>"
+        f"<span style='font-size:1.3rem;font-weight:700;color:{colour}'>{icon} "
+        f"{decision.verdict.value}</span>"
         f"<span style='margin-left:12px;opacity:0.85'>{decision.headline}</span></div>",
         unsafe_allow_html=True,
     )
@@ -1054,7 +1229,10 @@ def render_assumption_ledger(inputs: AnalysisInputs) -> None:
         ]
     )
     sections = st.multiselect(
-        "Filter by section", sorted(frame["Section"].unique()), default=[], key="ledger_filter"
+        "Filter by section",
+        sorted(frame["Section"].unique()),
+        default=[],
+        key="ledger_filter",
     )
     if sections:
         frame = frame[frame["Section"].isin(sections)]
@@ -1071,7 +1249,9 @@ def render_expected_return(result: AnalysisResult) -> None:
     inputs = result.inputs
     left, right = st.columns([3, 2])
     with left:
-        st.plotly_chart(profit_waterfall(result), width="stretch", key="waterfall_expected_return")
+        st.plotly_chart(
+            profit_waterfall(result), width="stretch", key="waterfall_expected_return"
+        )
     with right:
         st.markdown("**Capital, three different denominators**")
         capital = result.capital
@@ -1105,19 +1285,32 @@ def render_expected_return(result: AnalysisResult) -> None:
         )
         st.dataframe(frame, width="stretch", hide_index=True)
         st.caption(
-            f"Capital-weighted holding period: {capital.capital_weighted_days:.2f} days "
-            f"(full cycle {capital.cycle_days} days). Annualisation compounds that cycle, "
+            f"Capital-weighted holding period: {capital.capital_weighted_days:.2f} "
+            f"days "
+            f"(full cycle {capital.cycle_days} days). Annualisation compounds that "
+            f"cycle, "
             "which assumes you can repeat this bet immediately and indefinitely."
         )
         st.markdown("**Capital efficiency**")
         efficiency = pd.DataFrame(
             [
-                {"Ratio": "Expected profit / own equity", "Value": pct(capital.return_on_economic_capital)},
-                {"Ratio": "Expected profit / application capital", "Value": pct(capital.return_on_application_capital)},
-                {"Ratio": "Financing cost / expected gross profit", "Value": pct(capital.financing_cost_to_gross_profit)},
+                {
+                    "Ratio": "Expected profit / own equity",
+                    "Value": pct(capital.return_on_economic_capital),
+                },
+                {
+                    "Ratio": "Expected profit / application capital",
+                    "Value": pct(capital.return_on_application_capital),
+                },
+                {
+                    "Ratio": "Financing cost / expected gross profit",
+                    "Value": pct(capital.financing_cost_to_gross_profit),
+                },
                 {
                     "Ratio": "Expected profit per rupee of financing cost",
-                    "Value": "n/a" if capital.profit_to_financing_cost is None else f"{capital.profit_to_financing_cost:,.2f}x",
+                    "Value": "n/a"
+                    if capital.profit_to_financing_cost is None
+                    else f"{capital.profit_to_financing_cost:,.2f}x",
                 },
             ]
         )
@@ -1176,14 +1369,35 @@ def render_expected_return(result: AnalysisResult) -> None:
         financing = result.financing
         frame = pd.DataFrame(
             [
-                {"Item": "OD interest, bidding window", "Amount": inr(financing.od_cost_bidding_window, 2)},
-                {"Item": "OD interest, holding window (expected)", "Amount": inr(financing.expected_od_cost_holding_window, 2)},
+                {
+                    "Item": "OD interest, bidding window",
+                    "Amount": inr(financing.od_cost_bidding_window, 2),
+                },
+                {
+                    "Item": "OD interest, holding window (expected)",
+                    "Amount": inr(financing.expected_od_cost_holding_window, 2),
+                },
                 {"Item": "Processing fee", "Amount": inr(financing.processing_fee, 2)},
-                {"Item": "Other financing charges", "Amount": inr(financing.other_charges, 2)},
-                {"Item": "Total borrowing cost", "Amount": inr(financing.expected_borrowing_cost, 2)},
-                {"Item": "Opportunity cost of own capital", "Amount": inr(financing.expected_opportunity_cost, 2)},
-                {"Item": "FD interest earned (informational)", "Amount": inr(financing.fd_interest_earned, 2)},
-                {"Item": "FD interest counted as income", "Amount": inr(financing.fd_interest_credit, 2)},
+                {
+                    "Item": "Other financing charges",
+                    "Amount": inr(financing.other_charges, 2),
+                },
+                {
+                    "Item": "Total borrowing cost",
+                    "Amount": inr(financing.expected_borrowing_cost, 2),
+                },
+                {
+                    "Item": "Opportunity cost of own capital",
+                    "Amount": inr(financing.expected_opportunity_cost, 2),
+                },
+                {
+                    "Item": "FD interest earned (informational)",
+                    "Amount": inr(financing.fd_interest_earned, 2),
+                },
+                {
+                    "Item": "FD interest counted as income",
+                    "Amount": inr(financing.fd_interest_credit, 2),
+                },
             ]
         )
         st.dataframe(frame, width="stretch", hide_index=True)
@@ -1207,7 +1421,9 @@ def render_break_even(inputs: AnalysisInputs, result: AnalysisResult) -> None:
         delta_color="off",
     )
     columns[1].metric(
-        "Break-even GMP (expected value)", inr(break_even.gmp_expected_value, 2), delta_color="off"
+        "Break-even GMP (expected value)",
+        inr(break_even.gmp_expected_value, 2),
+        delta_color="off",
     )
     columns[2].metric(
         "Break-even if allotted",
@@ -1221,13 +1437,16 @@ def render_break_even(inputs: AnalysisInputs, result: AnalysisResult) -> None:
         f"you pay {inputs.financing.od_rate_pct:.2f}%",
         delta_color="off",
     )
-    st.plotly_chart(break_even_curve(inputs, result), width="stretch", key="break_even_curve")
+    st.plotly_chart(
+        break_even_curve(inputs, result), width="stretch", key="break_even_curve"
+    )
     minimum_probability = break_even.min_allotment_probability
     st.caption(
         "The expected-value break-even is the higher hurdle because the allotted "
         "shares must also pay the carry on every application that was refused. "
         + (
-            f"Minimum uniform allotment probability for break-even: {minimum_probability:.2%}."
+            f"Minimum uniform allotment probability for break-even: "
+            f"{minimum_probability:.2%}."
             if minimum_probability is not None
             else "No allotment probability makes this strategy break even."
         )
@@ -1262,10 +1481,12 @@ def render_scenarios(scenarios: Sequence[ScenarioResult]) -> None:
 
     bear = next((s for s in scenarios if s.name == "Bear"), None)
     if bear is not None and bear.result.expected_net_profit < 0:
+        bear_loss = abs(bear.result.expected_net_profit)
+        equity_at_risk = bear.result.capital.economic_capital_at_risk
         st.warning(
-            f"The bear case loses {inr(abs(bear.result.expected_net_profit))}, which is "
-            f"{pct(abs(bear.result.expected_net_profit) / bear.result.capital.economic_capital_at_risk)} "
-            "of your own equity at risk. Size the position so that this outcome is survivable."
+            f"The bear case loses {inr(bear_loss)}, which is "
+            f"{pct(bear_loss / equity_at_risk)} of your own equity at risk. Size the "
+            "position so that this outcome is survivable."
         )
 
 
@@ -1277,7 +1498,9 @@ def render_sensitivity(inputs: AnalysisInputs) -> None:
     )
     issue = inputs.ipo.issue_price
     base_gmp = inputs.ipo.gmp_absolute
-    base_probability = float(np.mean([a.allotment_probability for a in inputs.accounts]))
+    base_probability = float(
+        np.mean([a.allotment_probability for a in inputs.accounts])
+    )
 
     left, right = st.columns(2)
     with left:
@@ -1299,17 +1522,32 @@ def render_sensitivity(inputs: AnalysisInputs) -> None:
         )
 
     gmps = tuple(float(v) for v in np.round(np.linspace(0.0, gmp_high, 6), 2))
-    probabilities = tuple(float(v) for v in np.round(np.linspace(0.05, probability_high, 6), 3))
+    probabilities = tuple(
+        float(v) for v in np.round(np.linspace(0.05, probability_high, 6), 3)
+    )
     grid = cached_gmp_grid(inputs, gmps, probabilities)
     st.plotly_chart(
-        heatmap(grid, "Expected net profit: GMP vs allotment probability", "Allotment probability", "GMP (Rs)"),
+        heatmap(
+            grid,
+            "Expected net profit: GMP vs allotment probability",
+            "Allotment probability",
+            "GMP (Rs)",
+        ),
         width="stretch",
         key="heatmap_gmp_probability",
     )
 
     rate_high = max(inputs.financing.od_rate_pct * 1.8, 18.0)
     rates = tuple(float(v) for v in np.round(np.linspace(0.0, rate_high, 6), 2))
-    gains = tuple(float(v) for v in np.round(np.linspace(-20.0, max(inputs.ipo.expected_listing_gain_pct * 1.5, 30.0), 6), 2))
+    gains = tuple(
+        float(v)
+        for v in np.round(
+            np.linspace(
+                -20.0, max(inputs.ipo.expected_listing_gain_pct * 1.5, 30.0), 6
+            ),
+            2,
+        )
+    )
     rate_grid = cached_rate_grid(inputs, rates, gains)
     st.plotly_chart(
         heatmap(
@@ -1340,9 +1578,14 @@ def render_monte_carlo(inputs: AnalysisInputs, config: MonteCarloConfig) -> None
     columns[1].metric("Median profit", inr(simulation.median_profit))
     columns[2].metric("Probability of profit", pct(simulation.probability_of_profit, 1))
     columns[3].metric(
-        "5th percentile", inr(simulation.percentiles[5]), "worst 1-in-20 outcome", delta_color="off"
+        "5th percentile",
+        inr(simulation.percentiles[5]),
+        "worst 1-in-20 outcome",
+        delta_color="off",
     )
-    st.plotly_chart(monte_carlo_chart(simulation), width="stretch", key="monte_carlo_chart")
+    st.plotly_chart(
+        monte_carlo_chart(simulation), width="stretch", key="monte_carlo_chart"
+    )
 
     left, right = st.columns(2)
     with left:
@@ -1386,32 +1629,53 @@ def render_risk(result: AnalysisResult, risk: RiskMetrics) -> None:
     )
     columns[3].metric(
         "Profit-to-loss ratio",
-        "n/a" if risk.profit_to_loss_ratio is None else f"{risk.profit_to_loss_ratio:,.2f}x",
+        "n/a"
+        if risk.profit_to_loss_ratio is None
+        else f"{risk.profit_to_loss_ratio:,.2f}x",
         delta_color="off",
     )
 
     left, right = st.columns([3, 2])
     with left:
-        st.plotly_chart(outcome_distribution_chart(risk), width="stretch", key="outcome_distribution")
+        st.plotly_chart(
+            outcome_distribution_chart(risk),
+            width="stretch",
+            key="outcome_distribution",
+        )
     with right:
         st.markdown("**Dependence on each assumption**")
         frame = pd.DataFrame(
             [
-                {"Driver": "GMP margin of safety", "Value": pct(risk.gmp_margin_of_safety)},
-                {"Driver": "Hit-rate margin of safety", "Value": pct(risk.probability_margin_of_safety)},
+                {
+                    "Driver": "GMP margin of safety",
+                    "Value": pct(risk.gmp_margin_of_safety),
+                },
+                {
+                    "Driver": "Hit-rate margin of safety",
+                    "Value": pct(risk.probability_margin_of_safety),
+                },
                 {
                     "Driver": "OD rate headroom",
-                    "Value": "n/a" if risk.od_rate_headroom_pct is None else f"{risk.od_rate_headroom_pct:,.2f} pp",
+                    "Value": "n/a"
+                    if risk.od_rate_headroom_pct is None
+                    else f"{risk.od_rate_headroom_pct:,.2f} pp",
                 },
                 {
                     "Driver": "Profit sensitivity to GMP",
-                    "Value": "n/a" if risk.gmp_elasticity is None else f"{risk.gmp_elasticity:,.2f}x",
+                    "Value": "n/a"
+                    if risk.gmp_elasticity is None
+                    else f"{risk.gmp_elasticity:,.2f}x",
                 },
                 {
                     "Driver": "Profit sensitivity to hit-rate",
-                    "Value": "n/a" if risk.probability_elasticity is None else f"{risk.probability_elasticity:,.2f}x",
+                    "Value": "n/a"
+                    if risk.probability_elasticity is None
+                    else f"{risk.probability_elasticity:,.2f}x",
                 },
-                {"Driver": "Financing cost / gross profit", "Value": pct(risk.financing_cost_share_of_gross_profit)},
+                {
+                    "Driver": "Financing cost / gross profit",
+                    "Value": pct(risk.financing_cost_share_of_gross_profit),
+                },
             ]
         )
         st.dataframe(frame, width="stretch", hide_index=True)
@@ -1423,10 +1687,22 @@ def render_risk(result: AnalysisResult, risk: RiskMetrics) -> None:
         st.markdown("**Downside if the listing disappoints**")
         downside = pd.DataFrame(
             [
-                {"Listing outcome": "Lists flat at the issue price", "Expected net profit": inr(risk.profit_if_lists_flat)},
-                {"Listing outcome": "Lists 10% below the issue price", "Expected net profit": inr(risk.profit_if_lists_10pct_below)},
-                {"Listing outcome": "Bear scenario", "Expected net profit": inr(risk.bear_case_profit)},
-                {"Listing outcome": "No allotment at all", "Expected net profit": inr(result.net_profit_if_no_allotment)},
+                {
+                    "Listing outcome": "Lists flat at the issue price",
+                    "Expected net profit": inr(risk.profit_if_lists_flat),
+                },
+                {
+                    "Listing outcome": "Lists 10% below the issue price",
+                    "Expected net profit": inr(risk.profit_if_lists_10pct_below),
+                },
+                {
+                    "Listing outcome": "Bear scenario",
+                    "Expected net profit": inr(risk.bear_case_profit),
+                },
+                {
+                    "Listing outcome": "No allotment at all",
+                    "Expected net profit": inr(result.net_profit_if_no_allotment),
+                },
             ]
         )
         st.dataframe(downside, width="stretch", hide_index=True)
@@ -1442,8 +1718,10 @@ def render_decision(decision: DecisionOutcome) -> None:
     icon, colour = VERDICT_STYLE[decision.verdict]
     st.markdown(
         f"<div style='padding:18px;border-radius:8px;border:2px solid {colour};'>"
-        f"<div style='font-size:1.8rem;font-weight:700;color:{colour}'>{icon} {decision.verdict.value}</div>"
-        f"<div style='font-size:1.05rem;margin-top:4px'>{decision.headline}</div></div>",
+        f"<div style='font-size:1.8rem;font-weight:700;color:{colour}'>{icon} "
+        f"{decision.verdict.value}</div>"
+        f"<div style='font-size:1.05rem;margin-top:4px'>"
+        f"{decision.headline}</div></div>",
         unsafe_allow_html=True,
     )
     st.markdown("")
@@ -1478,7 +1756,9 @@ def render_portfolio(inputs: AnalysisInputs) -> None:
 
     portfolio = st.session_state["portfolio"]
     if not portfolio:
-        st.info("No opportunities added yet. Add the current analysis to start comparing.")
+        st.info(
+            "No opportunities added yet. Add the current analysis to start comparing."
+        )
         return
 
     frame = compare_opportunities(portfolio)
@@ -1492,7 +1772,9 @@ def render_portfolio(inputs: AnalysisInputs) -> None:
     ]
     left, right = st.columns([2, 1])
     sort_by = left.selectbox("Sort by", sort_options, key="portfolio_sort")
-    ascending = right.checkbox("Ascending", value=sort_by == "Probability of loss", key="portfolio_asc")
+    ascending = right.checkbox(
+        "Ascending", value=sort_by == "Probability of loss", key="portfolio_asc"
+    )
     frame = frame.sort_values(sort_by, ascending=ascending)
 
     display = pd.DataFrame(
@@ -1501,7 +1783,9 @@ def render_portfolio(inputs: AnalysisInputs) -> None:
             "Application": frame["Application"].map(compact_inr),
             "Own capital": frame["Own capital"].map(compact_inr),
             "OD used": frame["OD used"].map(compact_inr),
-            "Expected allotments": frame["Expected allotments"].map(lambda v: f"{v:.2f}"),
+            "Expected allotments": frame["Expected allotments"].map(
+                lambda v: f"{v:.2f}"
+            ),
             "Expected profit": frame["Expected net profit"].map(inr),
             "Financing cost": frame["Financing cost"].map(inr),
             "ROI on equity": frame["ROI on own equity"].map(pct),
@@ -1552,7 +1836,7 @@ def render_export(
     risk: RiskMetrics,
     decision: DecisionOutcome,
     scenarios: Sequence[ScenarioResult],
-    sensitivities: Dict[str, pd.DataFrame],
+    sensitivities: dict[str, pd.DataFrame],
     simulation,
 ) -> None:
     st.subheader("Export the analysis")
@@ -1561,7 +1845,10 @@ def render_export(
         "the scenarios, the sensitivities, the risk metrics and the verdict."
     )
     bundle = build_report(result, risk, decision, scenarios, sensitivities, simulation)
-    stem = "".join(c if c.isalnum() else "_" for c in result.inputs.ipo.name).strip("_") or "ipo"
+    stem = (
+        "".join(c if c.isalnum() else "_" for c in result.inputs.ipo.name).strip("_")
+        or "ipo"
+    )
     columns = st.columns(3)
     columns[0].download_button(
         "Download CSV",
@@ -1601,10 +1888,13 @@ def main() -> None:
     with heading:
         st.title("IPO Capital Allocation & Financing Decision Engine")
     with badge:
+        badge_style = (
+            f"background:{ACCENT};color:#fff;padding:4px 10px;border-radius:12px;"
+            "font-size:0.8rem;font-weight:600;letter-spacing:0.04em"
+        )
         st.markdown(
             f"<div style='text-align:right;padding-top:18px'>"
-            f"<span style='background:{ACCENT};color:#fff;padding:4px 10px;border-radius:12px;"
-            f"font-size:0.8rem;font-weight:600;letter-spacing:0.04em'>{RELEASE_NAME}</span></div>",
+            f"<span style='{badge_style}'>{RELEASE_NAME}</span></div>",
             unsafe_allow_html=True,
         )
     st.caption(
@@ -1625,7 +1915,11 @@ def main() -> None:
     decision = evaluate_decision(result, risk, thresholds)
     scenarios = cached_scenarios(
         inputs,
-        (scenario_definitions["bear"], scenario_definitions["base"], scenario_definitions["bull"]),
+        (
+            scenario_definitions["bear"],
+            scenario_definitions["base"],
+            scenario_definitions["bull"],
+        ),
     )
 
     render_kpis(result, risk, decision)
@@ -1653,12 +1947,32 @@ def main() -> None:
             st.dataframe(
                 pd.DataFrame(
                     [
-                        {"Bucket": "Applied for (blocked)", "Amount": inr(capital.total_application_amount)},
-                        {"Bucket": "Borrowed (OD drawn)", "Amount": inr(capital.borrowed_capital)},
-                        {"Bucket": "Own cash deployed", "Amount": inr(capital.own_capital_deployed)},
-                        {"Bucket": "FD collateral pledged", "Amount": inr(result.funding.fd_collateral_locked)},
-                        {"Bucket": "Own economic capital at risk", "Amount": inr(capital.economic_capital_at_risk)},
-                        {"Bucket": "Expected amount actually invested", "Amount": inr(sum(a.expected_investment for a in result.accounts))},
+                        {
+                            "Bucket": "Applied for (blocked)",
+                            "Amount": inr(capital.total_application_amount),
+                        },
+                        {
+                            "Bucket": "Borrowed (OD drawn)",
+                            "Amount": inr(capital.borrowed_capital),
+                        },
+                        {
+                            "Bucket": "Own cash deployed",
+                            "Amount": inr(capital.own_capital_deployed),
+                        },
+                        {
+                            "Bucket": "FD collateral pledged",
+                            "Amount": inr(result.funding.fd_collateral_locked),
+                        },
+                        {
+                            "Bucket": "Own economic capital at risk",
+                            "Amount": inr(capital.economic_capital_at_risk),
+                        },
+                        {
+                            "Bucket": "Expected amount actually invested",
+                            "Amount": inr(
+                                sum(a.expected_investment for a in result.accounts)
+                            ),
+                        },
                     ]
                 ),
                 width="stretch",
@@ -1671,7 +1985,9 @@ def main() -> None:
             )
         with right:
             st.subheader("Where the money goes")
-            st.plotly_chart(profit_waterfall(result), width="stretch", key="waterfall_overview")
+            st.plotly_chart(
+                profit_waterfall(result), width="stretch", key="waterfall_overview"
+            )
         render_assumption_ledger(inputs)
 
     with tabs[1]:
@@ -1693,17 +2009,50 @@ def main() -> None:
     with tabs[9]:
         render_methodology()
         st.divider()
-        base_probability = float(np.mean([a.allotment_probability for a in inputs.accounts]))
+        base_probability = float(
+            np.mean([a.allotment_probability for a in inputs.accounts])
+        )
         sensitivities = {
             "GMP vs probability": cached_gmp_grid(
                 inputs,
-                tuple(float(v) for v in np.round(np.linspace(0.0, max(inputs.ipo.gmp_absolute * 2.0, 1.0), 6), 2)),
-                tuple(float(v) for v in np.round(np.linspace(0.05, min(max(base_probability * 2.0, 0.3), 1.0), 6), 3)),
+                tuple(
+                    float(v)
+                    for v in np.round(
+                        np.linspace(0.0, max(inputs.ipo.gmp_absolute * 2.0, 1.0), 6), 2
+                    )
+                ),
+                tuple(
+                    float(v)
+                    for v in np.round(
+                        np.linspace(
+                            0.05, min(max(base_probability * 2.0, 0.3), 1.0), 6
+                        ),
+                        3,
+                    )
+                ),
             ),
             "OD rate vs listing gain": cached_rate_grid(
                 inputs,
-                tuple(float(v) for v in np.round(np.linspace(0.0, max(inputs.financing.od_rate_pct * 1.8, 18.0), 6), 2)),
-                tuple(float(v) for v in np.round(np.linspace(-20.0, max(inputs.ipo.expected_listing_gain_pct * 1.5, 30.0), 6), 2)),
+                tuple(
+                    float(v)
+                    for v in np.round(
+                        np.linspace(
+                            0.0, max(inputs.financing.od_rate_pct * 1.8, 18.0), 6
+                        ),
+                        2,
+                    )
+                ),
+                tuple(
+                    float(v)
+                    for v in np.round(
+                        np.linspace(
+                            -20.0,
+                            max(inputs.ipo.expected_listing_gain_pct * 1.5, 30.0),
+                            6,
+                        ),
+                        2,
+                    )
+                ),
             ),
         }
         render_export(
@@ -1733,7 +2082,7 @@ def run() -> None:
     """
     try:
         main()
-    except Exception as error:  # noqa: BLE001 - the guard must catch everything
+    except Exception as error:
         st.error(
             f"**Something went wrong while building this analysis.**\n\n"
             f"`{type(error).__name__}: {error}`\n\n"
